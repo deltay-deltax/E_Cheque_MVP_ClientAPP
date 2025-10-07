@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "190891493577",
+    "project_id": "e-cheque-a3b75",
+    "storage_bucket": "e-cheque-a3b75.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190891493577:android:cf4ccbc4a90838b2226518",
+        "android_client_info": {
+          "package_name": "com.example.echeque_mvp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190891493577-d1s6qnoj2rleooi2mget15pf57799gh0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.echeque_mvp",
+            "certificate_hash": "ad4b551731ed143a514c46fbf68c46adcd0ecc0b"
+          }
+        },
+        {
+          "client_id": "190891493577-jn24i9e5q40k62vsjs4q4hshaqicg1ds.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCwzve6wWmOsslB9g4a9VRAy9UsOMSrcuM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190891493577-jn24i9e5q40k62vsjs4q4hshaqicg1ds.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
