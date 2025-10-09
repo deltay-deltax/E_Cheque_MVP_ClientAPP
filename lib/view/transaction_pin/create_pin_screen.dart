@@ -30,9 +30,13 @@ class CreatePinScreen extends StatelessWidget {
             child: SizedBox(
               height: 52,
               width: double.infinity,
-              child: ElevatedButton(
+              child: Consumer<PinViewModel>(
+                builder: (context, vm, _) => ElevatedButton(
                 onPressed: () {
-                  final pin = context.read<PinViewModel>().pin;
+                  final pin = vm.pin;
+                  // Debug: print created PIN (remove in production)
+                  // ignore: avoid_print
+                  print('[CreatePinScreen] createdPin="$pin" len=${pin.length}');
                   if (pin.length != 4) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Enter 4 digits')),
@@ -55,7 +59,7 @@ class CreatePinScreen extends StatelessWidget {
                   'NEXT',
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                 ),
-              ),
+              )),
             ),
           ),
         ),

@@ -200,7 +200,13 @@ class _SignupScreenState extends State<SignupScreen> {
                               (route) => false,
                             );
                           } catch (e) {
-                            // optional minimal error toast
+                            final msg = e.toString().contains('bank_email_not_registered')
+                                ? 'Use your bank-registered email to sign up or sign in.'
+                                : 'Sign up failed. Please try again.';
+                            if (mounted) {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(content: Text(msg)));
+                            }
                           }
                         }
                       : null,

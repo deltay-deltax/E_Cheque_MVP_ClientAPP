@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'bank_service.dart';
 
 class AuthService {
   AuthService._();
@@ -14,6 +15,13 @@ class AuthService {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser == null) {
       throw Exception('sign_in_cancelled');
+    }
+    // Gate: only allow if email is present in bankUsers
+    final bank = await BankService.instance.findByEmail(googleUser.email);
+    if (bank == null) {
+      // Ensure sign-out from the transient Google session
+      try { await _googleSignIn.signOut(); } catch (_) {}
+      throw Exception('bank_email_not_registered');
     }
     // Obtain the auth details from the request
     final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
@@ -42,6 +50,11 @@ class AuthService {
     required String fullName,
     String? phone,
   }) async {
+    // Gate by bankUsers email
+    final bank = await BankService.instance.findByEmail(email);
+    if (bank == null) {
+      throw Exception('bank_email_not_registered');
+    }
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -62,6 +75,11 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    // Gate by bankUsers email
+    final bank = await BankService.instance.findByEmail(email);
+    if (bank == null) {
+      throw Exception('bank_email_not_registered');
+    }
     final cred = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
@@ -103,3 +121,4 @@ extension _AuthServiceFirestore on AuthService {
     await _usersCol.doc(user.uid).set(data, SetOptions(merge: true));
   }
 }
+

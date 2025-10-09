@@ -18,52 +18,57 @@ class PinEntryView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const SizedBox(height: 80),
-        CircleAvatar(
-          radius: 36,
-          backgroundColor: AppColors.blueBackground,
-          child: Icon(Icons.lock, size: 48, color: AppColors.primaryBlue),
-        ),
-        const SizedBox(height: 30),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.bold,
-            color: AppColors.darkText,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            message,
-            style: TextStyle(fontSize: 17, color: AppColors.mutedText),
-            textAlign: TextAlign.center,
-          ),
-        ),
-        const SizedBox(height: 20),
-        Row(
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(4, (index) {
-            bool filled = vm.pin.length > index;
-            return Container(
-              margin: const EdgeInsets.symmetric(horizontal: 8),
-              height: 16,
-              width: 16,
-              decoration: BoxDecoration(
-                color: filled ? AppColors.primaryBlue : AppColors.grey300,
-                shape: BoxShape.circle,
+          children: [
+            const SizedBox(height: 40),
+            CircleAvatar(
+              radius: 36,
+              backgroundColor: AppColors.blueBackground,
+              child: Icon(Icons.lock, size: 48, color: AppColors.primaryBlue),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
               ),
-            );
-          }),
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                message,
+                style: TextStyle(fontSize: 17, color: AppColors.mutedText),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(4, (index) {
+                bool filled = vm.pin.length > index;
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
+                  height: 16,
+                  width: 16,
+                  decoration: BoxDecoration(
+                    color: filled ? AppColors.primaryBlue : AppColors.grey300,
+                    shape: BoxShape.circle,
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 28),
+            NumPad(vm: vm, showForgot: showForgot),
+          ],
         ),
-        const SizedBox(height: 40),
-        NumPad(vm: vm, showForgot: showForgot),
-      ],
+      ),
     );
   }
 }

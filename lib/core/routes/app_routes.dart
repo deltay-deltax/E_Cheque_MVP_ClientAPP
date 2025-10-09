@@ -81,7 +81,11 @@ class AppRoutes {
       case pinCreate:
         return MaterialPageRoute(builder: (_) => const CreatePinScreen());
       case pinConfirm:
-        return MaterialPageRoute(builder: (_) => const ConfirmPinScreen());
+        final arg = settings.arguments;
+        final createdPin = arg is String ? arg : null;
+        return MaterialPageRoute(
+          builder: (_) => ConfirmPinScreen(createdPin: createdPin),
+        );
       case pinSetSuccess:
         return MaterialPageRoute(builder: (_) => const PinSetSuccessScreen());
       default:

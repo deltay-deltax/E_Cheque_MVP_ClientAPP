@@ -6,6 +6,9 @@ import '../../view_model/home_view_model.dart';
 import '../../core/routes/app_routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/user_service.dart';
+import 'e_cheque_screen.dart';
+import 'cheque_history_screen.dart';
+import 'cheque_received_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -72,7 +75,25 @@ class HomeScreen extends StatelessWidget {
                       const SizedBox(height: 24),
                       _BalanceCard(vm: vm),
                       const SizedBox(height: 16),
-                      const _LinkCard(),
+                      // Hide link card once bank is linked and PIN set
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: UserService.instance.streamCurrentUser(),
+                        builder: (context, snapshot) {
+                          final data = snapshot.data?.data();
+                          final bankLinked =
+                              (data?['bankLinked'] as bool?) ?? false;
+                          final pinSet = (() {
+                            final legacy = (data?['transactionPinHash'] as String?) != null;
+                            final obj = data?['transactionPin'] as Map<String, dynamic>?;
+                            final v2 = (obj?['hash'] as String?) != null;
+                            return legacy || v2;
+                          })();
+                          if (bankLinked && pinSet) {
+                            return const SizedBox.shrink();
+                          }
+                          return const _LinkCard();
+                        },
+                      ),
                       const SizedBox(height: 22),
                       Text(
                         "Quick Actions",
@@ -186,11 +207,9 @@ Widget _buildBottomNav(BuildContext context, int currentIndex) {
           );
           break;
         case 3:
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ProfileScreen(),
-            ),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
           break;
       }
     },
@@ -236,104 +255,109 @@ class _BalanceCard extends StatelessWidget {
   final HomeViewModel vm;
   const _BalanceCard({required this.vm});
 
+  String _todayString() {
+    final now = DateTime.now();
+    final dd = now.day.toString().padLeft(2, '0');
+    final mm = now.month.toString().padLeft(2, '0');
+    final yyyy = now.year.toString();
+    return "$dd/$mm/$yyyy";
+  }
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: UserService.instance.streamCurrentUser(),
-      builder: (context, snapshot) {
-        final data = snapshot.data?.data();
-        final bank = data != null ? (data['bank'] as Map<String, dynamic>?) : null;
-        final balance = bank != null ? (bank['balance']?.toString() ?? '0') : null;
-        final accountNumber = bank != null ? (bank['accountNumber']?.toString() ?? '') : null;
-
-        final displayBalance = balance != null ? '₹${balance}' : vm.totalBalance;
-        final displayAcc = accountNumber?.isNotEmpty == true ? accountNumber! : vm.mainAccountNumber;
-
-        return Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.primaryBlue,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Text(
-                    vm.mainCardSubtitle,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                  const SizedBox(width: 7),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF456EDE),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.trending_up,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          vm.mainCardRate,
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 7),
               Text(
-                displayBalance,
-                style: const TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: -1,
-                ),
+                vm.mainCardSubtitle,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
               ),
-              const SizedBox(height: 3),
-              Text(
-                vm.availableToSpend,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.white.withOpacity(0.9),
+              const SizedBox(width: 7),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF456EDE),
+                  borderRadius: BorderRadius.circular(30),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Account Number",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.trending_up,
+                      size: 14,
+                      color: Colors.white,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    displayAcc,
-                    style: const TextStyle(fontSize: 17, color: Colors.white),
-                  ),
-                ],
+                    const SizedBox(width: 2),
+                    Text(
+                      vm.mainCardRate,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 7),
+          Text(
+            vm.totalBalance,
+            style: const TextStyle(
+              fontSize: 30,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            vm.availableToSpend,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.white.withOpacity(0.9),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Account Number",
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.white.withOpacity(0.90),
+                ),
+              ),
+              // Right-side label removed as requested (was: "Valid Thru")
+              const SizedBox.shrink(),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                vm.mainAccountNumber,
+                style: const TextStyle(fontSize: 17, color: Colors.white),
+              ),
+              Text(
+                _todayString(),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -424,6 +448,29 @@ class _QuickActionsGrid extends StatelessWidget {
               text: a.text,
               bgColor: a.bgColor,
               iconColor: a.iconColor,
+              onTap: () {
+                switch (a.text) {
+                  case 'E-Cheque':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const EChequeScreen()),
+                    );
+                    break;
+                  case 'E-cheque History':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ChequeHistoryScreen()),
+                    );
+                    break;
+                  case 'Received Cheque':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const ReceivedChequesScreen()),
+                    );
+                    break;
+                  default:
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Coming soon: ${a.text}')),
+                    );
+                }
+              },
             ),
           )
           .toList(),
@@ -439,53 +486,59 @@ class _ActionItem extends StatelessWidget {
   final String text;
   final Color bgColor;
   final Color iconColor;
+  final VoidCallback? onTap;
   const _ActionItem({
     required this.icon,
     required this.text,
     required this.bgColor,
     required this.iconColor,
+    this.onTap,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-            color: Colors.black12.withOpacity(0.06),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+              color: Colors.black12.withOpacity(0.06),
             ),
-            padding: const EdgeInsets.all(10),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.darkText,
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                color: iconColor.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(10),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 10),
+            Text(
+              text,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.darkText,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

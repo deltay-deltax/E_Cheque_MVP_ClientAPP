@@ -109,7 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     (route) => false,
                   );
                 } catch (e) {
-                  // optional minimal error toast
+                  final msg = e.toString().contains('bank_email_not_registered')
+                      ? 'Sign in using your bank-registered email.'
+                      : 'Unable to sign in. Please check your credentials.';
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(msg)));
+                  }
                 } finally {
                   if (mounted) setState(() => _loading = false);
                 }
@@ -144,7 +150,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         (route) => false,
                       );
                     } catch (e) {
-                      // Optionally handle errors silently or show minimal feedback
+                      final msg = e.toString().contains('bank_email_not_registered')
+                          ? 'Sign in using your bank-registered email.'
+                          : 'Google sign-in failed. Try again.';
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(msg)));
+                      }
                     } finally {
                       if (mounted) setState(() => _loading = false);
                     }

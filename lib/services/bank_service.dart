@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class BankService {
   BankService._();
@@ -22,4 +24,30 @@ class BankService {
     if (q.docs.isEmpty) return null;
     return q.docs.first.data();
   }
+
+  Future<Map<String, dynamic>?> findByEmail(String email) async {
+    if (email.isEmpty) return null;
+    final q = await _bankUsers.where('email', isEqualTo: email).limit(1).get();
+    if (q.docs.isEmpty) return null;
+    return q.docs.first.data();
+  }
+
+  Future<void> setTransactionPinForAccount(String accountNumber, String pin) async {
+    if (pin.length != 4) {
+      throw Exception('invalid_pin');
+    }
+    final q = await _bankUsers
+        .where('accountNumber', isEqualTo: accountNumber)
+        .limit(1)
+        .get();
+    if (q.docs.isEmpty) {
+      throw Exception('bank_account_not_found');
+    }
+    final hash = sha256.convert(utf8.encode(pin)).toString();
+    await _bankUsers.doc(q.docs.first.id).set({
+      'transactionPinHash': hash,
+      'transactionPinSetAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
 }
+
