@@ -5,7 +5,6 @@ import '../../core/constants/app_colors.dart';
 import '../../view_model/pin_view_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/user_service.dart';
-import '../../services/bank_service.dart';
 
 class ConfirmPinScreen extends StatelessWidget {
   final String? createdPin;
@@ -54,15 +53,8 @@ class ConfirmPinScreen extends StatelessWidget {
                       return;
                     }
                     try {
-                      // Save PIN under user document
+                      // Save PIN under user document only
                       await UserService.instance.setTransactionPin(confirm);
-
-                      // Also save PIN under bankUsers using the user's linked account number
-                      final userSnap = await UserService.instance.streamCurrentUser().first;
-                      final accountNumber = (userSnap.data()?['bank']?['accountNumber'])?.toString();
-                      if (accountNumber != null && accountNumber.isNotEmpty) {
-                        await BankService.instance.setTransactionPinForAccount(accountNumber, confirm);
-                      }
 
                       if (!context.mounted) return;
                       Navigator.pushNamedAndRemoveUntil(

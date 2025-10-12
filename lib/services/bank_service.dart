@@ -32,6 +32,20 @@ class BankService {
     return q.docs.first.data();
   }
 
+  Stream<Map<String, dynamic>?> streamByEmail(String email) {
+    if (email.isEmpty) return const Stream<Map<String, dynamic>?>.empty();
+    return _bankUsers.where('email', isEqualTo: email).limit(1).snapshots().map(
+      (snap) => snap.docs.isEmpty ? null : snap.docs.first.data(),
+    );
+  }
+
+  Stream<Map<String, dynamic>?> streamByAccount(String accountNumber) {
+    if (accountNumber.isEmpty) return const Stream<Map<String, dynamic>?>.empty();
+    return _bankUsers.where('accountNumber', isEqualTo: accountNumber).limit(1).snapshots().map(
+      (snap) => snap.docs.isEmpty ? null : snap.docs.first.data(),
+    );
+  }
+
   Future<void> setTransactionPinForAccount(String accountNumber, String pin) async {
     if (pin.length != 4) {
       throw Exception('invalid_pin');

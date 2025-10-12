@@ -5,6 +5,7 @@ import '../widgets/custom_text_field.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/auth_service.dart';
 import '../../core/services/prefs_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -81,7 +82,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 const Text("Remember me"),
                 const Spacer(),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.pushNamed(context, AppRoutes.forgot);
+                  },
                   child: Text(
                     "Forgot Password?",
                     style: TextStyle(color: AppColors.primaryBlue),
@@ -108,10 +111,38 @@ class _LoginScreenState extends State<LoginScreen> {
                     AppRoutes.home,
                     (route) => false,
                   );
+                } on FirebaseAuthException catch (e) {
+                  String msg;
+                  switch (e.code) {
+                    case 'invalid-email':
+                      msg = 'Invalid email format.';
+                      break;
+                    case 'user-not-found':
+                      msg = 'Not registered. Please register first.';
+                      break;
+                    case 'wrong-password':
+                      msg = 'Wrong password. Please try again.';
+                      break;
+                    case 'user-disabled':
+                      msg = 'Account disabled. Contact support.';
+                      break;
+                    default:
+                      msg = 'Unable to sign in. Please check your credentials.';
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text(msg)));
+                  }
                 } catch (e) {
-                  final msg = e.toString().contains('bank_email_not_registered')
-                      ? 'Sign in using your bank-registered email.'
-                      : 'Unable to sign in. Please check your credentials.';
+                  String msg;
+                  final err = e.toString();
+                  if (err.contains('not_registered')) {
+                    msg = 'Not registered. Please register first.';
+                  } else if (err.contains('bank_email_not_registered')) {
+                    msg = 'Use your bank-registered email.';
+                  } else {
+                    msg = 'Unable to sign in. Please try again.';
+                  }
                   if (mounted) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(msg)));
@@ -149,10 +180,37 @@ class _LoginScreenState extends State<LoginScreen> {
                         AppRoutes.home,
                         (route) => false,
                       );
+                    } on FirebaseAuthException catch (e) {
+                      String msg;
+                      switch (e.code) {
+                        case 'account-exists-with-different-credential':
+                          msg = 'Account exists with different sign-in method.';
+                          break;
+                        case 'invalid-credential':
+                          msg = 'Invalid credential. Try again.';
+                          break;
+                        case 'user-disabled':
+                          msg = 'Account disabled. Contact support.';
+                          break;
+                        default:
+                          msg = 'Google sign-in failed. Try again.';
+                      }
+                      if (mounted) {
+                        ScaffoldMessenger.of(context)
+                            .showSnackBar(SnackBar(content: Text(msg)));
+                      }
                     } catch (e) {
-                      final msg = e.toString().contains('bank_email_not_registered')
-                          ? 'Sign in using your bank-registered email.'
-                          : 'Google sign-in failed. Try again.';
+                      String msg;
+                      final err = e.toString();
+                      if (err.contains('not_registered')) {
+                        msg = 'Not registered. Please register first.';
+                      } else if (err.contains('bank_email_not_registered')) {
+                        msg = 'Use your bank-registered email.';
+                      } else if (err.contains('sign_in_cancelled')) {
+                        msg = 'Sign-in cancelled.';
+                      } else {
+                        msg = 'Google sign-in failed. Try again.';
+                      }
                       if (mounted) {
                         ScaffoldMessenger.of(context)
                             .showSnackBar(SnackBar(content: Text(msg)));

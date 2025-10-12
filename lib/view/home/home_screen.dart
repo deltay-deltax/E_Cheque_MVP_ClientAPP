@@ -9,6 +9,9 @@ import '../../services/user_service.dart';
 import 'e_cheque_screen.dart';
 import 'cheque_history_screen.dart';
 import 'cheque_received_screen.dart';
+import '../../services/cheque_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/bank_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -19,6 +22,10 @@ class HomeScreen extends StatelessWidget {
       create: (_) => HomeViewModel(),
       child: Consumer<HomeViewModel>(
         builder: (context, vm, _) {
+          // Process any due cheques after the first frame when Home loads
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            ChequeService.instance.processDueCheques();
+          });
           return Scaffold(
             backgroundColor: AppColors.white,
             appBar: AppBar(
@@ -56,24 +63,60 @@ class HomeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const SizedBox(height: 8),
-                      Text(
-                        "Welcome back,",
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: AppColors.mutedText,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        vm.userName,
-                        style: TextStyle(
-                          fontSize: 27,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
-                        ),
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: UserService.instance.streamCurrentUser(),
+                        builder: (context, snap) {
+                          final data = snap.data?.data();
+                          final name = (data?['fullName'] ?? data?['displayName'] ?? '') as String?;
+                          final displayName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'User';
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Welcome back,",
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  color: AppColors.mutedText,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: 27,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.darkText,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 24),
-                      _BalanceCard(vm: vm),
+                      // Show balance card only when bank is linked; balance from bankUsers
+                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                        stream: UserService.instance.streamCurrentUser(),
+                        builder: (context, snapshot) {
+                          final data = snapshot.data?.data();
+                          final bankLinked = (data?['bankLinked'] as bool?) ?? false;
+                          if (!bankLinked) return const SizedBox.shrink();
+                          final account = (data?['bank']?['accountNumber'])?.toString() ?? '';
+                          final email = FirebaseAuth.instance.currentUser?.email ?? '';
+                          final bankStream = account.isNotEmpty
+                              ? BankService.instance.streamByAccount(account)
+                              : BankService.instance.streamByEmail(email);
+                          return StreamBuilder<Map<String, dynamic>?>(
+                            stream: bankStream,
+                            builder: (context, bankSnap) {
+                              final bank = bankSnap.data;
+                              final bal = (bank?['balance'] as num?)?.toDouble();
+                              final acct = bank?['accountNumber']?.toString();
+                              final displayBal = bal != null ? '₹${bal.toStringAsFixed(2)}' : null;
+                              return _BalanceCard(vm: vm, overrideBalance: displayBal, overrideAccountNumber: acct);
+                            },
+                          );
+                        },
+                      ),
                       const SizedBox(height: 16),
                       // Hide link card once bank is linked and PIN set
                       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -253,7 +296,13 @@ class _NavPageScaffold extends StatelessWidget {
 /// -----------------------------------------------------------
 class _BalanceCard extends StatelessWidget {
   final HomeViewModel vm;
-  const _BalanceCard({required this.vm});
+  final String? overrideBalance;
+  final String? overrideAccountNumber;
+  const _BalanceCard({
+    required this.vm,
+    this.overrideBalance,
+    this.overrideAccountNumber,
+  });
 
   String _todayString() {
     final now = DateTime.now();
@@ -307,7 +356,7 @@ class _BalanceCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(
-            vm.totalBalance,
+            overrideBalance ?? vm.totalBalance,
             style: const TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.bold,
@@ -343,7 +392,7 @@ class _BalanceCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                vm.mainAccountNumber,
+                overrideAccountNumber ?? vm.mainAccountNumber,
                 style: const TextStyle(fontSize: 17, color: Colors.white),
               ),
               Text(

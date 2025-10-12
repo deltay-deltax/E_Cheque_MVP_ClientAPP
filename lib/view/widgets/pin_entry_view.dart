@@ -7,12 +7,14 @@ class PinEntryView extends StatelessWidget {
   final String title;
   final String message;
   final bool showForgot;
+  final ValueChanged<String>? onComplete;
 
   const PinEntryView({
     required this.vm,
     required this.title,
     required this.message,
     this.showForgot = false,
+    this.onComplete,
     super.key,
   });
 
@@ -65,7 +67,7 @@ class PinEntryView extends StatelessWidget {
               }),
             ),
             const SizedBox(height: 28),
-            NumPad(vm: vm, showForgot: showForgot),
+            NumPad(vm: vm, showForgot: showForgot, onComplete: onComplete),
           ],
         ),
       ),
@@ -76,15 +78,21 @@ class PinEntryView extends StatelessWidget {
 class NumPad extends StatelessWidget {
   final PinViewModel vm;
   final bool showForgot;
+  final ValueChanged<String>? onComplete;
 
-  const NumPad({required this.vm, this.showForgot = false, super.key});
+  const NumPad({required this.vm, this.showForgot = false, this.onComplete, super.key});
 
   Widget buildNumberButton(String number) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(40),
-        onTap: () => vm.addDigit(number),
+        onTap: () {
+          vm.addDigit(number);
+          if (vm.isPinComplete && onComplete != null) {
+            onComplete!(vm.pin);
+          }
+        },
         child: SizedBox(
           width: 96,
           height: 96,

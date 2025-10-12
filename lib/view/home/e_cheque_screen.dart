@@ -3,12 +3,59 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../view_model/cheque_view_model.dart';
 import '../../view/widgets/custom_text_field.dart';
-import '../../view/widgets/custom_file_upload_box.dart';
 import '../../services/cheque_service.dart';
-import 'cheque_history_screen.dart';
+import '../../services/user_service.dart';
+import 'cheque_received_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../transaction_pin/enter_pin_screen.dart';
 
-class EChequeScreen extends StatelessWidget {
+class EChequeScreen extends StatefulWidget {
   const EChequeScreen({super.key});
+
+  @override
+  State<EChequeScreen> createState() => _EChequeScreenState();
+}
+
+class _EChequeScreenState extends State<EChequeScreen> {
+  late final TextEditingController _payeeController;
+  late final TextEditingController _amountController;
+  // Removed bank controller; bank name sourced from linked bank
+  late final TextEditingController _notesController;
+  late final TextEditingController _dateController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _accountController;
+  late final TextEditingController _signatureController;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final vm = ChequeViewModel();
+    _payeeController = TextEditingController(text: vm.payee);
+    _amountController = TextEditingController(text: vm.amount);
+    _notesController = TextEditingController(text: vm.notes);
+    _dateController = TextEditingController(
+      text: vm.date != null
+          ? "${vm.date!.month.toString().padLeft(2, '0')}/${vm.date!.day.toString().padLeft(2, '0')}/${vm.date!.year}"
+          : "",
+    );
+    _phoneController = TextEditingController();
+    _accountController = TextEditingController();
+    _signatureController = TextEditingController(text: vm.signaturePath);
+  }
+
+  @override
+  void dispose() {
+    _payeeController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    _dateController.dispose();
+    _phoneController.dispose();
+    _accountController.dispose();
+    _signatureController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,16 +63,6 @@ class EChequeScreen extends StatelessWidget {
       create: (_) => ChequeViewModel(),
       child: Consumer<ChequeViewModel>(
         builder: (context, vm, _) {
-          final payeeController = TextEditingController(text: vm.payee);
-          final amountController = TextEditingController(text: vm.amount);
-          final bankController = TextEditingController(text: vm.bankName);
-          final notesController = TextEditingController(text: vm.notes);
-          final dateController = TextEditingController(
-            text: vm.date != null
-                ? "${vm.date!.month.toString().padLeft(2, '0')}/${vm.date!.day.toString().padLeft(2, '0')}/${vm.date!.year}"
-                : "",
-          );
-
           return Scaffold(
             backgroundColor: AppColors.grey100,
             appBar: AppBar(
@@ -42,7 +79,9 @@ class EChequeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            body: Center(
+            body: Stack(
+              children: [
+                Center(
               child: SingleChildScrollView(
                 child: Container(
                   margin: const EdgeInsets.all(18),
@@ -61,32 +100,32 @@ class EChequeScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       CustomTextField(
-                        controller: payeeController,
+                        controller: _payeeController,
                         hintText: "Payee Name",
                         prefixIcon: Icons.person,
                         onTap: null,
+                        
                       ),
-                      // Keep vm in sync
                       Builder(builder: (_) {
-                        payeeController.addListener(() {
-                          if (vm.payee != payeeController.text) {
-                            vm.setPayee(payeeController.text);
+                        _payeeController.addListener(() {
+                          if (vm.payee != _payeeController.text) {
+                            vm.setPayee(_payeeController.text);
                           }
                         });
                         return const SizedBox.shrink();
                       }),
                       const SizedBox(height: 19),
                       CustomTextField(
-                        controller: amountController,
+                        controller: _amountController,
                         hintText: "Amount",
                         keyboardType: TextInputType.number,
                         prefixIcon: Icons.currency_rupee,
                         onTap: null,
                       ),
                       Builder(builder: (_) {
-                        amountController.addListener(() {
-                          if (vm.amount != amountController.text) {
-                            vm.setAmount(amountController.text);
+                        _amountController.addListener(() {
+                          if (vm.amount != _amountController.text) {
+                            vm.setAmount(_amountController.text);
                           }
                         });
                         return const SizedBox.shrink();
@@ -96,7 +135,7 @@ class EChequeScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: CustomTextField(
-                              controller: dateController,
+                              controller: _dateController,
                               hintText: "MM/DD/YYYY",
                               prefixIcon: Icons.calendar_today_outlined,
                               readOnly: true,
@@ -109,6 +148,7 @@ class EChequeScreen extends StatelessWidget {
                                 );
                                 if (picked != null) {
                                   vm.setDate(picked);
+                                  _dateController.text = "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
                                 }
                               },
                             ),
@@ -128,68 +168,141 @@ class EChequeScreen extends StatelessWidget {
                               );
                               if (picked != null) {
                                 vm.setDate(picked);
+                                _dateController.text = "${picked.month.toString().padLeft(2, '0')}/${picked.day.toString().padLeft(2, '0')}/${picked.year}";
                               }
                             },
                           ),
                         ],
                       ),
+                      // Bank name removed; taken from linked bank at submit
+                      const SizedBox(height: 19),
+                      CustomTextField(
+                        controller: _phoneController,
+                        hintText: "Receiver Phone (optional)",
+                        keyboardType: TextInputType.phone,
+                        prefixIcon: Icons.phone,
+                        onTap: null,
+                      ),
                       Builder(builder: (_) {
-                        bankController.addListener(() {
-                          if (vm.bankName != bankController.text) {
-                            vm.setBankName(bankController.text);
+                        _phoneController.addListener(() {
+                          if (vm.receiverPhone != _phoneController.text) {
+                            vm.setReceiverPhone(_phoneController.text);
                           }
                         });
                         return const SizedBox.shrink();
                       }),
                       const SizedBox(height: 19),
                       CustomTextField(
-                        controller: notesController,
+                        controller: _accountController,
+                        hintText: "Receiver Account Number (optional)",
+                        keyboardType: TextInputType.number,
+                        prefixIcon: Icons.numbers,
+                        onTap: null,
+                      ),
+                      Builder(builder: (_) {
+                        _accountController.addListener(() {
+                          if (vm.receiverAccount != _accountController.text) {
+                            vm.setReceiverAccount(_accountController.text);
+                          }
+                        });
+                        return const SizedBox.shrink();
+                      }),
+                      const SizedBox(height: 19),
+                      CustomTextField(
+                        controller: _notesController,
                         hintText: "Notes (Optional)",
                         prefixIcon: Icons.notes,
                         onTap: null,
                       ),
                       Builder(builder: (_) {
-                        notesController.addListener(() {
-                          if (vm.notes != notesController.text) {
-                            vm.setNotes(notesController.text);
+                        _notesController.addListener(() {
+                          if (vm.notes != _notesController.text) {
+                            vm.setNotes(_notesController.text);
                           }
                         });
                         return const SizedBox.shrink();
                       }),
                       const SizedBox(height: 27),
                       Text(
-                        "Digital Signature",
+                        "Signature (type your name)",
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      CustomFileUploadBox(
-                        fileName: vm.signaturePath.isNotEmpty
-                            ? vm.signaturePath
-                            : null,
-                        onUpload: () {
-                          // TODO: Use file picker; for now keep filename text only
-                          // vm.setSignaturePath(file.path.split('/').last);
-                        },
+                      CustomTextField(
+                        controller: _signatureController,
+                        hintText: "e.g. John Doe",
+                        prefixIcon: Icons.draw,
+                        onTap: null,
                       ),
+                      Builder(builder: (_) {
+                        _signatureController.addListener(() {
+                          if (vm.signaturePath != _signatureController.text) {
+                            vm.setSignaturePath(_signatureController.text);
+                          }
+                        });
+                        return const SizedBox.shrink();
+                      }),
                       const SizedBox(height: 30),
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: ElevatedButton(
-                          onPressed: () async {
-                            // Basic validation
+                          onPressed: _submitting ? null : () async {
+                            // Basic validation (bank name removed, auto-fetched)
                             if (vm.payee.trim().isEmpty ||
                                 vm.amount.trim().isEmpty ||
-                                vm.bankName.trim().isEmpty ||
                                 vm.date == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Please fill all required fields (payee, amount, date, bank).'),
+                                  content: Text('Please fill all required fields (payee, amount, date).'),
                                 ),
                               );
+                              return;
+                            }
+                            setState(() => _submitting = true);
+                            // Navigate to EnterPinScreen to capture PIN
+                            final pin = await Navigator.of(context).push<String>(
+                              MaterialPageRoute(builder: (_) => const EnterPinScreen()),
+                            );
+                            if (pin == null || pin.length != 4) {
+                              setState(() => _submitting = false);
+                              return;
+                            }
+                            if (pin.length != 4) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('PIN must be 4 digits')),
+                              );
+                              setState(() => _submitting = false);
+                              return;
+                            }
+                            final verified = await UserService.instance.verifyTransactionPin(pin);
+                            if (!verified) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Incorrect PIN')),
+                              );
+                              setState(() => _submitting = false);
+                              return;
+                            }
+                            // Fetch issuer bank name from linked bank
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Not authenticated')),
+                              );
+                              setState(() => _submitting = false);
+                              return;
+                            }
+                            final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+                            final bankName = (userDoc.data()?['bank']?['bankName'])?.toString() ?? '';
+                            if (bankName.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please link your bank before issuing a cheque')),
+                              );
+                              setState(() => _submitting = false);
                               return;
                             }
                             try {
@@ -197,22 +310,27 @@ class EChequeScreen extends StatelessWidget {
                                 payee: vm.payee.trim(),
                                 amount: vm.amount.trim(),
                                 date: vm.date!,
-                                bankName: vm.bankName.trim(),
+                                bankName: bankName,
                                 notes: vm.notes.trim().isEmpty ? null : vm.notes.trim(),
+                                // Reuse signaturePath field to store typed signature text
                                 signaturePath: vm.signaturePath,
+                                receiverPhone: vm.receiverPhone.trim().isEmpty ? null : vm.receiverPhone.trim(),
+                                receiverAccount: vm.receiverAccount.trim().isEmpty ? null : vm.receiverAccount.trim(),
                                 status: 'pending',
                               );
                               if (!context.mounted) return;
-                              // Navigate to history screen
+                              // Navigate to received cheques screen
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (_) => const ChequeHistoryScreen(),
+                                  builder: (_) => const ReceivedChequesScreen(),
                                 ),
                               );
                             } catch (e) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Failed to submit cheque: $e')),
                               );
+                            } finally {
+                              if (mounted) setState(() => _submitting = false);
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -221,20 +339,40 @@ class EChequeScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(18),
                             ),
                           ),
-                          child: Text(
-                            "Submit Cheque",
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _submitting
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  "Submit Cheque",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
+                ),
+                if (_submitting)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: false,
+                      child: Container(
+                        color: Colors.black26,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           );
         },

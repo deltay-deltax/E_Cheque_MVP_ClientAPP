@@ -22,13 +22,16 @@ class _SignupScreenState extends State<SignupScreen> {
   bool obscurePassword = true;
   bool obscureConfirmPassword = true;
   bool agreeToTerms = false;
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
       body: SafeArea(
-        child: Center(
+        child: Stack(
+          children: [
+            Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
@@ -187,6 +190,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           }
 
                           try {
+                            setState(() => _loading = true);
                             await AuthService.instance.signUpWithEmail(
                               email: email,
                               password: password,
@@ -202,83 +206,20 @@ class _SignupScreenState extends State<SignupScreen> {
                           } catch (e) {
                             final msg = e.toString().contains('bank_email_not_registered')
                                 ? 'Use your bank-registered email to sign up or sign in.'
-                                : 'Sign up failed. Please try again.';
+                                : (e.toString().contains('email_already_exists')
+                                    ? 'Email already exists. Please sign in.'
+                                    : 'Sign up failed. Please try again.');
                             if (mounted) {
                               ScaffoldMessenger.of(context)
                                   .showSnackBar(SnackBar(content: Text(msg)));
                             }
+                          } finally {
+                            if (mounted) setState(() => _loading = false);
                           }
                         }
                       : null,
                   isEnabled: agreeToTerms,
                   fillColor: AppColors.primaryBlue,
-                ),
-
-                const SizedBox(height: 36),
-
-                // OR Divider
-                Row(
-                  children: const [
-                    Expanded(child: Divider(thickness: 1)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: Text('OR', style: TextStyle(color: Colors.grey)),
-                    ),
-                    Expanded(child: Divider(thickness: 1)),
-                  ],
-                ),
-
-                const SizedBox(height: 24),
-
-                // Social Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: () async {
-                        try {
-                          await AuthService.instance.signInWithGoogle();
-                          if (!mounted) return;
-                          Navigator.pushNamedAndRemoveUntil(
-                            context,
-                            AppRoutes.home,
-                            (route) => false,
-                          );
-                        } catch (e) {
-                          // handle silently or minimal feedback
-                        }
-                      },
-                      icon: const Icon(Icons.g_mobiledata, size: 24),
-                      label: const Text('Google'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.grey200,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.apple, size: 20),
-                      label: const Text('Apple'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.grey200,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
 
                 const SizedBox(height: 32),
@@ -312,6 +253,15 @@ class _SignupScreenState extends State<SignupScreen> {
               ],
             ),
           ),
+            ),
+            if (_loading)
+              Positioned.fill(
+                child: Container(
+                  color: Colors.black26,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+              ),
+          ],
         ),
       ),
     );

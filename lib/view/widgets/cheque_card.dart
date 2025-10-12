@@ -6,8 +6,9 @@ class ChequeCard extends StatelessWidget {
   final ChequeModel model;
   final bool showActions;
   final VoidCallback? onView;
+  final Color? statusDotColor;
 
-  const ChequeCard({required this.model, this.showActions = false, this.onView, super.key});
+  const ChequeCard({required this.model, this.showActions = false, this.onView, this.statusDotColor, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -71,12 +72,29 @@ class ChequeCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        model.name,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              model.name,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          if (statusDotColor != null)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(left: 6),
+                              decoration: BoxDecoration(
+                                color: statusDotColor,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                     Container(
@@ -128,50 +146,44 @@ class ChequeCard extends StatelessWidget {
                 if (showActions)
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            child: Text(
-                              model.status == ChequeStatus.pending
-                                  ? "Accept"
-                                  : (model.status == ChequeStatus.bounced
-                                        ? "Contact"
-                                        : "View Cheque"),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  model.status == ChequeStatus.pending
-                                  ? AppColors.primaryGreen
-                                  : (model.status == ChequeStatus.bounced
-                                        ? Colors.grey
-                                        : AppColors.primaryBlue),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(9),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (model.status == ChequeStatus.pending ||
-                            model.status == ChequeStatus.bounced)
-                          const SizedBox(width: 10),
-                        if (model.status != ChequeStatus.pending)
-                          Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          SizedBox(
+                            width: 150,
                             child: ElevatedButton(
-                              onPressed: onView,
+                              onPressed: () {},
                               child: Text(
-                                model.status == ChequeStatus.bounced
-                                    ? "Contact"
-                                    : "View Cheque",
+                                model.status == ChequeStatus.pending
+                                    ? "Accept"
+                                    : (model.status == ChequeStatus.bounced
+                                          ? "Contact"
+                                          : "View Cheque"),
                               ),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor:
-                                    model.status == ChequeStatus.bounced
-                                    ? Colors.grey
-                                    : AppColors.primaryBlue,
+                                    model.status == ChequeStatus.pending
+                                    ? AppColors.primaryGreen
+                                    : (model.status == ChequeStatus.bounced
+                                          ? Colors.grey
+                                          : AppColors.primaryBlue),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 150,
+                            child: ElevatedButton(
+                              onPressed: onView,
+                              child: const Text("View Cheque"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryBlue,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 10,
@@ -182,7 +194,8 @@ class ChequeCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                      ],
+                        ],
+                      ),
                     ),
                   )
                 else

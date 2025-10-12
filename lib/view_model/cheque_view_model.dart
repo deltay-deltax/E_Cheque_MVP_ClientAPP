@@ -7,6 +7,8 @@ class ChequeViewModel extends ChangeNotifier {
   String bankName = '';
   String notes = '';
   String signaturePath = '';
+  String receiverPhone = '';
+  String receiverAccount = '';
 
   void setPayee(String value) {
     payee = value;
@@ -35,6 +37,16 @@ class ChequeViewModel extends ChangeNotifier {
 
   void setSignaturePath(String path) {
     signaturePath = path;
+    notifyListeners();
+  }
+
+  void setReceiverPhone(String value) {
+    receiverPhone = value;
+    notifyListeners();
+  }
+
+  void setReceiverAccount(String value) {
+    receiverAccount = value;
     notifyListeners();
   }
 

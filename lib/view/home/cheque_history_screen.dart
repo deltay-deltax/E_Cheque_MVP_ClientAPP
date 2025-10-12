@@ -6,6 +6,7 @@ import '../../view_model/cheque_history_view_model.dart';
 import '../../services/cheque_service.dart';
 import 'view_cheque_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChequeHistoryScreen extends StatelessWidget {
   const ChequeHistoryScreen({super.key});
@@ -54,6 +55,14 @@ class ChequeHistoryScreen extends StatelessWidget {
                       Expanded(
                         child: TextButton(
                           onPressed: () => vm.setFilter(false),
+                          style: TextButton.styleFrom(
+                            backgroundColor: vm.showOnlyPending
+                                ? AppColors.white
+                                : AppColors.primaryGreen.withOpacity(0.12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
                           child: Text(
                             "All Cheques",
                             style: TextStyle(
@@ -63,19 +72,19 @@ class ChequeHistoryScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            backgroundColor: vm.showOnlyPending
-                                ? AppColors.white
-                                : AppColors.primaryGreen.withOpacity(0.12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
                         ),
                       ),
                       Expanded(
                         child: TextButton(
                           onPressed: () => vm.setFilter(true),
+                          style: TextButton.styleFrom(
+                            backgroundColor: vm.showOnlyPending
+                                ? AppColors.primaryGreen.withOpacity(0.12)
+                                : AppColors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                          ),
                           child: Text(
                             "Pending",
                             style: TextStyle(
@@ -85,48 +94,156 @@ class ChequeHistoryScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          style: TextButton.styleFrom(
-                            backgroundColor: vm.showOnlyPending
-                                ? AppColors.primaryGreen.withOpacity(0.12)
-                                : AppColors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 14),
-                StreamBuilder<List<Map<String, dynamic>>>(
-                  stream: ChequeService.instance.streamUserCheques(),
-                  builder: (context, snapshot) {
+                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  future: FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(FirebaseAuth.instance.currentUser?.uid)
+                      .get(),
+                  builder: (context, userSnap) {
+                    final userData = userSnap.data?.data();
+                    final balance = ((userData?['bank'] as Map<String, dynamic>?)?['balance'] as num?)?.toDouble() ?? 0.0;
+                    return StreamBuilder<List<Map<String, dynamic>>>(
+                      stream: ChequeService.instance.streamUserCheques(),
+                      builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
-                      ));
-                    }
-                    final docs = snapshot.data ?? [];
-                    if (docs.isEmpty) {
-                      return Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Center(
-                          child: Text(
-                            'No cheques yet',
-                            style: TextStyle(color: AppColors.mutedText),
-                          ),
+                      return const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: CircularProgressIndicator(),
                         ),
                       );
                     }
-                    // Optional filter: show pending only
+
+                    final docs = snapshot.data ?? [];
+                    if (docs.isEmpty) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Center(
+                              child: Text(
+                                'No cheques yet',
+                                style: TextStyle(color: AppColors.mutedText),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: const [
+                                _StatusTotal(
+                                  '₹0.00',
+                                  'Total Cleared',
+                                  AppColors.primaryGreen,
+                                ),
+                                SizedBox(width: 24),
+                                _StatusTotal(
+                                  '₹0.00',
+                                  'Pending',
+                                  AppColors.primaryYellow,
+                                ),
+                                SizedBox(width: 24),
+                                _StatusTotal('₹0.00', 'Rejected', Colors.red),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+
+                    final clearedCount = docs
+                        .where(
+                          (d) =>
+                              (d['status']?.toString().toLowerCase() ?? '') ==
+                              'cleared',
+                        )
+                        .length;
+                    final pendingCount = docs
+                        .where(
+                          (d) =>
+                              (d['status']?.toString().toLowerCase() ?? '') ==
+                              'pending',
+                        )
+                        .length;
+                    final rejectedCount = docs
+                        .where(
+                          (d) =>
+                              (d['status']?.toString().toLowerCase() ?? '') ==
+                              'rejected',
+                        )
+                        .length;
+
                     final filtered = vm.showOnlyPending
-                        ? docs.where((d) => (d['status'] ?? 'pending') == 'pending').toList()
+                        ? docs
+                              .where(
+                                (d) =>
+                                    (d['status']?.toString().toLowerCase() ??
+                                        'pending') ==
+                                    'pending',
+                              )
+                              .toList()
                         : docs;
-                    return Column(
-                      children: filtered.map((d) {
-                        final statusStr = (d['status'] ?? 'pending') as String;
+
+                    final List<Widget> children = [
+                      Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              blurRadius: 8,
+                              color: Colors.black12.withOpacity(0.05),
+                            ),
+                          ],
+                        ),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _StatusChipH(
+                                label: 'Cleared',
+                                count: clearedCount,
+                                color: AppColors.primaryGreen,
+                              ),
+                              const SizedBox(width: 12),
+                              _StatusChipH(
+                                label: 'Pending',
+                                count: pendingCount,
+                                color: AppColors.primaryYellow,
+                              ),
+                              const SizedBox(width: 12),
+                              _StatusChipH(
+                                label: 'Rejected',
+                                count: rejectedCount,
+                                color: Colors.red,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ];
+
+                    children.addAll(
+                      filtered.map((d) {
+                        final statusStr =
+                            (d['status']?.toString().toLowerCase() ??
+                            'pending');
                         ChequeStatus status;
                         switch (statusStr) {
                           case 'cleared':
@@ -141,9 +258,11 @@ class ChequeHistoryScreen extends StatelessWidget {
                           default:
                             status = ChequeStatus.pending;
                         }
+
                         final amount = (d['amount'] is num)
                             ? (d['amount'] as num).toDouble()
                             : double.tryParse('${d['amount']}') ?? 0.0;
+
                         final model = ChequeModel(
                           name: d['payee'] ?? 'Unknown',
                           subText: d['bankName'] ?? '',
@@ -154,43 +273,96 @@ class ChequeHistoryScreen extends StatelessWidget {
                           chequeNo: d['chequeNo'],
                           extraDesc: null,
                         );
+
+                        // Compute status dot color based on current user balance vs amount
+                        Color? dot;
+                        if (balance <= 0) {
+                          dot = null;
+                        } else if (balance < amount) {
+                          dot = Colors.red;
+                        } else if (balance < amount * 2) {
+                          dot = AppColors.primaryYellow;
+                        } else {
+                          dot = AppColors.primaryGreen;
+                        }
+
                         return ChequeCard(
                           model: model,
                           showActions: false,
+                          statusDotColor: dot,
                           onView: () {
                             Navigator.of(context).push(
                               MaterialPageRoute(
-                                builder: (_) => ViewChequeScreen(chequeId: d['id'] as String),
+                                builder: (_) => ViewChequeScreen(
+                                  chequeId: d['id'] as String,
+                                ),
                               ),
                             );
                           },
                         );
                       }).toList(),
                     );
+
+                    // Compute real totals by summing amounts per status
+                    double clearedTotal = 0,
+                        pendingTotal = 0,
+                        rejectedTotal = 0;
+                    for (final d in docs) {
+                      final statusStr =
+                          (d['status']?.toString().toLowerCase() ?? 'pending');
+                      final amount = (d['amount'] is num)
+                          ? (d['amount'] as num).toDouble()
+                          : double.tryParse('${d['amount']}') ?? 0.0;
+                      switch (statusStr) {
+                        case 'cleared':
+                          clearedTotal += amount;
+                          break;
+                        case 'rejected':
+                          rejectedTotal += amount;
+                          break;
+                        default:
+                          if (statusStr == 'pending') pendingTotal += amount;
+                      }
+                    }
+
+                    children.add(const SizedBox(height: 16));
+                    children.add(
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _StatusTotal(
+                              "₹${clearedTotal.toStringAsFixed(2)}",
+                              "Total Cleared",
+                              AppColors.primaryGreen,
+                            ),
+                            const SizedBox(width: 24),
+                            _StatusTotal(
+                              "₹${pendingTotal.toStringAsFixed(2)}",
+                              "Pending",
+                              AppColors.primaryYellow,
+                            ),
+                            const SizedBox(width: 24),
+                            _StatusTotal(
+                              "₹${rejectedTotal.toStringAsFixed(2)}",
+                              "Rejected",
+                              Colors.red,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: children,
+                    );
+                      },
+                    );
                   },
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _StatusTotal(
-                      "₹${vm.clearedTotal}",
-                      "Total Cleared",
-                      AppColors.primaryGreen,
-                    ),
-                    _StatusTotal(
-                      "₹${vm.pendingTotal}",
-                      "Pending",
-                      AppColors.primaryYellow,
-                    ),
-                    _StatusTotal(
-                      "₹${vm.rejectedTotal}",
-                      "Rejected",
-                      Colors.red,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
               ],
             ),
           ),
@@ -241,6 +413,50 @@ class _StatusTotal extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _StatusChipH extends StatelessWidget {
+  final String label;
+  final int count;
+  final Color color;
+
+  const _StatusChipH({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(30),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -6,13 +6,25 @@ import '../../core/routes/app_routes.dart';
 import '../../services/bank_service.dart';
 import '../../services/user_service.dart';
 
-class LinkWithMobileScreen extends StatelessWidget {
+class LinkWithMobileScreen extends StatefulWidget {
   const LinkWithMobileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final controller = TextEditingController();
+  State<LinkWithMobileScreen> createState() => _LinkWithMobileScreenState();
+}
 
+class _LinkWithMobileScreenState extends State<LinkWithMobileScreen> {
+  final controller = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (_) => BankLinkViewModel(),
       child: Consumer<BankLinkViewModel>(
@@ -31,11 +43,14 @@ class LinkWithMobileScreen extends StatelessWidget {
             ),
             centerTitle: true,
           ),
-          body: Padding(
+          body: Stack(
+            children: [
+              Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
                 const SizedBox(height: 38),
                 CircleAvatar(
                   radius: 40,
@@ -86,7 +101,7 @@ class LinkWithMobileScreen extends StatelessWidget {
                   ),
                   style: TextStyle(fontSize: 18),
                 ),
-                const Spacer(),
+                const SizedBox(height: 24),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 24, left: 3, right: 3),
                   child: Column(
@@ -129,11 +144,13 @@ class LinkWithMobileScreen extends StatelessWidget {
                               return;
                             }
                             try {
+                              setState(() => _loading = true);
                               final data = await BankService.instance.findByPhone(phone);
                               if (data == null) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(content: Text('No bank user found for this mobile number')),
                                 );
+                                setState(() => _loading = false);
                                 return;
                               }
                               await UserService.instance.linkBankToUser(data);
@@ -146,6 +163,8 @@ class LinkWithMobileScreen extends StatelessWidget {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Failed: $e')),
                               );
+                            } finally {
+                              if (mounted) setState(() => _loading = false);
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -167,8 +186,18 @@ class LinkWithMobileScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
+              ),
+              if (_loading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black26,
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+                ),
+            ],
           ),
         ),
       ),

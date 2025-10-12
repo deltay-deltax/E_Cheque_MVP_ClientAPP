@@ -8,7 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ViewChequeScreen extends StatelessWidget {
   final String chequeId;
-  const ViewChequeScreen({required this.chequeId, super.key});
+  final String? issuerUid;
+  const ViewChequeScreen({required this.chequeId, this.issuerUid, super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +33,16 @@ class ViewChequeScreen extends StatelessWidget {
             leading: BackButton(color: Colors.black),
           ),
           body: FutureBuilder<Map<String, dynamic>?>(
-            future: ChequeService.instance.getChequeById(chequeId),
+            future: (() async {
+              // Try issuer's collection first if provided
+              Map<String, dynamic>? d;
+              if (issuerUid != null && issuerUid!.isNotEmpty) {
+                d = await ChequeService.instance.getChequeById(chequeId, uid: issuerUid);
+              }
+              // Fallback to current user's own collection
+              d ??= await ChequeService.instance.getChequeById(chequeId);
+              return d;
+            })(),
             builder: (context, snap) {
               if (snap.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -47,6 +57,10 @@ class ViewChequeScreen extends StatelessWidget {
                   : double.tryParse('${d['amount']}') ?? 0.0;
               final amountNumber = _formatAmount(amount);
               final amountWords = "Rupees ${amount.toStringAsFixed(2)}"; // TODO: convert to words if needed
+              final shareData = {
+                ...d,
+                'date': dateText,
+              };
               return ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 children: [
@@ -59,7 +73,7 @@ class ViewChequeScreen extends StatelessWidget {
                     amountNumber: amountNumber,
                     amountWords: amountWords,
                     memo: d['notes'] ?? '',
-                    signatureName: '',
+                    signatureName: (d['signaturePath'] ?? '') as String,
                     microText: '*MICR*: ${d['chequeNo'] ?? ''}',
                   ),
                   const SizedBox(height: 10),
@@ -97,7 +111,7 @@ class ViewChequeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                     ),
                   ),
-                  onPressed: () => vm.shareCheque(context),
+                  onPressed: () => vm.shareCheque(context, shareData),
                   child: Text(
                     "Share Cheque",
                     style: TextStyle(

@@ -7,6 +7,7 @@ import '../../view/splash/splash4_screen.dart';
 import '../../view/auth/login_screen.dart';
 import '../../view/auth/signup_screen.dart';
 import '../../view/auth/success_screen.dart';
+import '../../view/auth/forgot_password_screen.dart';
 import '../../view/home/home_screen.dart';
 import '../../view/transaction_pin/enter_pin_screen.dart';
 import '../../view/transaction_pin/create_pin_screen.dart';
@@ -27,6 +28,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String signup = '/signup';
   static const String authSuccess = '/success';
+  static const String forgot = '/forgot';
 
   // Home
   static const String home = '/home';
@@ -68,6 +70,8 @@ class AppRoutes {
             ),
           ),
         );
+      case forgot:
+        return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
       case home:
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       case bankAdd:
