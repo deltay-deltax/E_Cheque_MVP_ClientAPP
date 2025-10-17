@@ -112,37 +112,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     (route) => false,
                   );
                 } on FirebaseAuthException catch (e) {
-                  String msg;
-                  switch (e.code) {
-                    case 'invalid-email':
-                      msg = 'Invalid email format.';
-                      break;
-                    case 'user-not-found':
-                      msg = 'Not registered. Please register first.';
-                      break;
-                    case 'wrong-password':
-                      msg = 'Wrong password. Please try again.';
-                      break;
-                    case 'user-disabled':
-                      msg = 'Account disabled. Contact support.';
-                      break;
-                    default:
-                      msg = 'Unable to sign in. Please check your credentials.';
-                  }
+                  final msg = e.message ?? 'Auth error: ${e.code}';
                   if (mounted) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(msg)));
                   }
                 } catch (e) {
-                  String msg;
-                  final err = e.toString();
-                  if (err.contains('not_registered')) {
-                    msg = 'Not registered. Please register first.';
-                  } else if (err.contains('bank_email_not_registered')) {
-                    msg = 'Use your bank-registered email.';
-                  } else {
-                    msg = 'Unable to sign in. Please try again.';
-                  }
+                  final msg = e.toString();
                   if (mounted) {
                     ScaffoldMessenger.of(context)
                         .showSnackBar(SnackBar(content: Text(msg)));

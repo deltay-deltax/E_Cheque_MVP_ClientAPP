@@ -1,3 +1,4 @@
+import 'package:echeque_mvp/view/home/quick_actions_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -5,13 +6,16 @@ import 'profile_screen.dart';
 import '../../view_model/home_view_model.dart';
 import '../../core/routes/app_routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
 import 'e_cheque_screen.dart';
 import 'cheque_history_screen.dart';
 import 'cheque_received_screen.dart';
 import '../../services/cheque_service.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../services/bank_service.dart';
+import '../tracker/transaction_history_screen.dart';
+import '../tracker/add_expense_screen.dart';
+import '../tracker/analytics_screen.dart';
+import '../tracker/add_category_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -67,8 +71,13 @@ class HomeScreen extends StatelessWidget {
                         stream: UserService.instance.streamCurrentUser(),
                         builder: (context, snap) {
                           final data = snap.data?.data();
-                          final name = (data?['fullName'] ?? data?['displayName'] ?? '') as String?;
-                          final displayName = (name != null && name.trim().isNotEmpty) ? name.trim() : 'User';
+                          final name =
+                              (data?['fullName'] ?? data?['displayName'] ?? '')
+                                  as String?;
+                          final displayName =
+                              (name != null && name.trim().isNotEmpty)
+                              ? name.trim()
+                              : 'User';
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -93,27 +102,25 @@ class HomeScreen extends StatelessWidget {
                         },
                       ),
                       const SizedBox(height: 24),
-                      // Show balance card only when bank is linked; balance from bankUsers
+                      // Show balance card only when bank is linked; balance from users/{uid}.bank.balance for latest updates
                       StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                         stream: UserService.instance.streamCurrentUser(),
                         builder: (context, snapshot) {
                           final data = snapshot.data?.data();
-                          final bankLinked = (data?['bankLinked'] as bool?) ?? false;
+                          final bankLinked =
+                              (data?['bankLinked'] as bool?) ?? false;
                           if (!bankLinked) return const SizedBox.shrink();
-                          final account = (data?['bank']?['accountNumber'])?.toString() ?? '';
-                          final email = FirebaseAuth.instance.currentUser?.email ?? '';
-                          final bankStream = account.isNotEmpty
-                              ? BankService.instance.streamByAccount(account)
-                              : BankService.instance.streamByEmail(email);
-                          return StreamBuilder<Map<String, dynamic>?>(
-                            stream: bankStream,
-                            builder: (context, bankSnap) {
-                              final bank = bankSnap.data;
-                              final bal = (bank?['balance'] as num?)?.toDouble();
-                              final acct = bank?['accountNumber']?.toString();
-                              final displayBal = bal != null ? '₹${bal.toStringAsFixed(2)}' : null;
-                              return _BalanceCard(vm: vm, overrideBalance: displayBal, overrideAccountNumber: acct);
-                            },
+                          final bank =
+                              (data?['bank'] as Map<String, dynamic>?) ?? {};
+                          final bal = (bank['balance'] as num?)?.toDouble();
+                          final acct = bank['accountNumber']?.toString();
+                          final displayBal = bal != null
+                              ? '₹${bal.toStringAsFixed(2)}'
+                              : null;
+                          return _BalanceCard(
+                            vm: vm,
+                            overrideBalance: displayBal,
+                            overrideAccountNumber: acct,
                           );
                         },
                       ),
@@ -126,8 +133,12 @@ class HomeScreen extends StatelessWidget {
                           final bankLinked =
                               (data?['bankLinked'] as bool?) ?? false;
                           final pinSet = (() {
-                            final legacy = (data?['transactionPinHash'] as String?) != null;
-                            final obj = data?['transactionPin'] as Map<String, dynamic>?;
+                            final legacy =
+                                (data?['transactionPinHash'] as String?) !=
+                                null;
+                            final obj =
+                                data?['transactionPin']
+                                    as Map<String, dynamic>?;
                             final v2 = (obj?['hash'] as String?) != null;
                             return legacy || v2;
                           })();
@@ -184,9 +195,72 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 9),
-                      ...vm.transactions
-                          .map((t) => _TransactionCard(data: t))
-                          .toList(),
+                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                        stream: (() {
+                          final uid = FirebaseAuth.instance.currentUser?.uid;
+                          if (uid == null) {
+                            return Stream<
+                              QuerySnapshot<Map<String, dynamic>>
+                            >.empty();
+                          }
+                          return FirebaseFirestore.instance
+                              .collection('transactions')
+                              .where('userId', isEqualTo: uid)
+                              .orderBy('at', descending: true)
+                              .limit(3)
+                              .snapshots();
+                        })(),
+                        builder: (context, snap) {
+                          if (snap.connectionState == ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            );
+                          }
+                          final docs = snap.data?.docs ?? const [];
+                          if (docs.isEmpty) {
+                            return const Text(
+                              'No recent transactions',
+                              style: TextStyle(color: Colors.grey),
+                            );
+                          }
+                          return Column(
+                            children: docs.map((d) {
+                              final data = d.data();
+                              final dir =
+                                  (data['direction'] as String?) ?? 'debit';
+                              final incoming = dir == 'credit';
+                              final amount = ((data['amount'] as num?) ?? 0)
+                                  .toDouble();
+                              final note =
+                                  (data['note'] as String?) ??
+                                  (data['source'] as String? ?? 'Transaction');
+                              final atTs = data['at'];
+                              String time = '';
+                              if (atTs is Timestamp) {
+                                final dt = atTs.toDate();
+                                time =
+                                    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                              }
+                              return _TransactionCard(
+                                data: TransactionCardData(
+                                  note,
+                                  incoming ? 'Income' : 'Payment',
+                                  time.isEmpty ? '—' : time,
+                                  (incoming ? '+₹' : '-₹') +
+                                      amount.toStringAsFixed(2),
+                                  incoming ? 'Income' : 'Expense',
+                                  incoming
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward,
+                                  incoming
+                                      ? const Color(0xFF10B981)
+                                      : Colors.red,
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
                       const SizedBox(height: 100),
                     ],
                   ),
@@ -197,8 +271,125 @@ class HomeScreen extends StatelessWidget {
               mini: true,
               backgroundColor: AppColors.primaryBlue,
               onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Create action tapped')),
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(18),
+                    ),
+                  ),
+                  builder: (_) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const AddExpenseScreen(),
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          blurRadius: 10,
+                                          color: Colors.black12.withOpacity(
+                                            0.05,
+                                          ),
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.add_circle,
+                                          color: Color(0xFF2563EB),
+                                          size: 28,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Add Expense',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: InkWell(
+                                  onTap: () {
+                                    Navigator.of(context).pop();
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const AddCategoryScreen(),
+                                      ),
+                                    );
+                                  },
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          blurRadius: 10,
+                                          color: Colors.black12.withOpacity(
+                                            0.05,
+                                          ),
+                                          offset: const Offset(0, 3),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: const [
+                                        Icon(
+                                          Icons.category,
+                                          color: Color(0xFF2563EB),
+                                          size: 28,
+                                        ),
+                                        SizedBox(height: 8),
+                                        Text(
+                                          'Add Category',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
               child: const Icon(Icons.add, color: Colors.white),
@@ -239,15 +430,9 @@ Widget _buildBottomNav(BuildContext context, int currentIndex) {
           );
           break;
         case 2:
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const _NavPageScaffold(
-                title: 'Analytics',
-                selectedIndex: 2,
-                message: 'Analytics (Coming soon)',
-              ),
-            ),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const AnalyticsScreen()));
           break;
         case 3:
           Navigator.of(
@@ -498,7 +683,8 @@ class _QuickActionsGrid extends StatelessWidget {
               bgColor: a.bgColor,
               iconColor: a.iconColor,
               onTap: () {
-                switch (a.text) {
+                final key = a.text.replaceAll(RegExp(r'\s+'), ' ').trim();
+                switch (key) {
                   case 'E-Cheque':
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const EChequeScreen()),
@@ -506,12 +692,30 @@ class _QuickActionsGrid extends StatelessWidget {
                     break;
                   case 'E-cheque History':
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ChequeHistoryScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const ChequeHistoryScreen(),
+                      ),
                     );
                     break;
                   case 'Received Cheque':
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const ReceivedChequesScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const ReceivedChequesScreen(),
+                      ),
+                    );
+                    break;
+                  case 'Transactions':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TransactionsScreen(),
+                      ),
+                    );
+                    break;
+                  case 'More':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const QuickActionsScreen(),
+                      ),
                     );
                     break;
                   default:

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ChequeStatus { cleared, pending, bounced, rejected }
 
@@ -29,6 +30,31 @@ class ChequeModel {
 }
 
 class ChequeHistoryViewModel extends ChangeNotifier {
+  String nameQuery = '';
+  String bankQuery = '';
+  DateTimeRange? dateRange;
+
+  void setNameQuery(String v) {
+    nameQuery = v;
+    notifyListeners();
+  }
+
+  void setBankQuery(String v) {
+    bankQuery = v;
+    notifyListeners();
+  }
+
+  void setDateRange(DateTimeRange? range) {
+    dateRange = range;
+    notifyListeners();
+  }
+
+  void clearFilters() {
+    nameQuery = '';
+    bankQuery = '';
+    dateRange = null;
+    notifyListeners();
+  }
   List<ChequeModel> receivedCheques = [
     ChequeModel(
       name: "John Mitchell",
@@ -132,6 +158,35 @@ class ChequeHistoryViewModel extends ChangeNotifier {
   void setFilter(bool pending) {
     showOnlyPending = pending;
     notifyListeners();
+  }
+
+  bool matchesDoc(Map<String, dynamic> d) {
+    if (showOnlyPending) {
+      final s = (d['status']?.toString().toLowerCase() ?? '');
+      if (s != 'pending') return false;
+    }
+    if (nameQuery.trim().isNotEmpty) {
+      final payee = (d['payee'] ?? '').toString().toLowerCase();
+      if (!payee.contains(nameQuery.trim().toLowerCase())) return false;
+    }
+    if (bankQuery.trim().isNotEmpty) {
+      final bank = (d['bankName'] ?? '').toString().toLowerCase();
+      if (!bank.contains(bankQuery.trim().toLowerCase())) return false;
+    }
+    if (dateRange != null) {
+      final v = d['date'];
+      DateTime? dt;
+      if (v is DateTime) dt = v;
+      if (v is Timestamp) dt = v.toDate();
+      if (v is String) {
+        dt = DateTime.tryParse(v);
+      }
+      if (dt == null) return false;
+      final start = DateTime(dateRange!.start.year, dateRange!.start.month, dateRange!.start.day);
+      final end = DateTime(dateRange!.end.year, dateRange!.end.month, dateRange!.end.day, 23, 59, 59, 999);
+      if (dt.isBefore(start) || dt.isAfter(end)) return false;
+    }
+    return true;
   }
 
   List<ChequeModel> get filteredCheques => showOnlyPending

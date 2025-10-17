@@ -8,7 +8,13 @@ class ChequeCard extends StatelessWidget {
   final VoidCallback? onView;
   final Color? statusDotColor;
 
-  const ChequeCard({required this.model, this.showActions = false, this.onView, this.statusDotColor, super.key});
+  const ChequeCard({
+    required this.model,
+    this.showActions = false,
+    this.onView,
+    this.statusDotColor,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +80,8 @@ class ChequeCard extends StatelessWidget {
                     Expanded(
                       child: Row(
                         children: [
-                          Expanded(
+                          Flexible(
+                            fit: FlexFit.loose,
                             child: Text(
                               model.name,
                               overflow: TextOverflow.ellipsis,
@@ -169,7 +176,9 @@ class ChequeCard extends StatelessWidget {
                                           ? Colors.grey
                                           : AppColors.primaryBlue),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 10,
+                                ),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(9),
                                 ),

@@ -17,7 +17,7 @@ class HomeViewModel extends ChangeNotifier {
       Color(0xFF2563EB),
     ),
     QuickAction(
-      "E-cheque History",
+      "E-cheque  History",
       Icons.call_received,
       Color(0xFFE6FFF4),
       Color(0xFF10B981),

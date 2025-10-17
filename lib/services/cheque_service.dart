@@ -129,6 +129,7 @@ class ChequeService {
       if (!dueDate.isAfter(now)) {
         // due or past due
         String newStatus = 'pending';
+        String finalStatus = 'pending';
         await _db.runTransaction((txn) async {
           final issuerRef = _userDoc(uid);
           final issuerDoc = await txn.get(issuerRef);
@@ -153,10 +154,55 @@ class ChequeService {
           txn.update(d.reference, updates);
           // If receiverUid exists, also update inbox status (separate write after txn)
         });
+        finalStatus = newStatus;
         final receiverUid = (data['receiverUid'] as String?);
         if (receiverUid != null && receiverUid.isNotEmpty && receiverUid != uid) {
           try {
-            await _userDoc(receiverUid).collection('inboxCheques').doc(d.id).update({'status': newStatus});
+            await _userDoc(receiverUid).collection('inboxCheques').doc(d.id).update({'status': finalStatus});
+          } catch (_) {}
+        }
+
+        // Log transactions when cleared
+        if (finalStatus == 'cleared') {
+          try {
+            final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
+            final payee = (data['payee'] as String?) ?? '';
+            final chequeNo = (data['chequeNo'] as String?) ?? '';
+            final issuerTx = {
+              'userId': uid,
+              'direction': 'debit',
+              'amount': amt,
+              'chequeId': d.id,
+              'chequeNo': chequeNo,
+              'counterpartyUid': receiverUid ?? '',
+              'bankName': (data['bankName'] as String?) ?? '',
+              'at': FieldValue.serverTimestamp(),
+              'source': 'cheque',
+              'method': 'cheque',
+              'status': 'Completed',
+              'note': 'Cheque to $payee',
+              'payeeName': payee,
+            };
+            await _db.collection('transactions').add(issuerTx);
+
+            if (receiverUid != null && receiverUid.isNotEmpty && receiverUid != uid) {
+              final receiverTx = {
+                'userId': receiverUid,
+                'direction': 'credit',
+                'amount': amt,
+                'chequeId': d.id,
+                'chequeNo': chequeNo,
+                'counterpartyUid': uid,
+                'bankName': (data['bankName'] as String?) ?? '',
+                'at': FieldValue.serverTimestamp(),
+                'source': 'cheque',
+                'method': 'cheque',
+                'status': 'Completed',
+                'note': 'Cheque from ${_auth.currentUser?.displayName ?? 'User'}',
+                'payeeName': _auth.currentUser?.displayName ?? '',
+              };
+              await _db.collection('transactions').add(receiverTx);
+            }
           } catch (_) {}
         }
       }
@@ -189,5 +235,12 @@ class ChequeService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((snap) => snap.docs.map((d) => {...d.data(), 'id': d.id}).toList());
+  }
+
+  Future<Map<String, dynamic>?> getInboxChequeById(String chequeId, {String? uid}) async {
+    final u = uid ?? _uid;
+    final doc = await _userDoc(u).collection('inboxCheques').doc(chequeId).get();
+    if (!doc.exists) return null;
+    return {...doc.data()!, 'id': doc.id};
   }
 }

@@ -34,12 +34,24 @@ class ViewChequeScreen extends StatelessWidget {
           ),
           body: FutureBuilder<Map<String, dynamic>?>(
             future: (() async {
-              // Try issuer's collection first if provided
+              // 1) Try issuer's collection first if provided
               Map<String, dynamic>? d;
               if (issuerUid != null && issuerUid!.isNotEmpty) {
-                d = await ChequeService.instance.getChequeById(chequeId, uid: issuerUid);
+                try {
+                  d = await ChequeService.instance.getChequeById(chequeId, uid: issuerUid);
+                } catch (_) {
+                  d = null;
+                }
               }
-              // Fallback to current user's own collection
+              // 2) Then try current user's inbox mirror (receiver side)
+              if (d == null) {
+                try {
+                  d = await ChequeService.instance.getInboxChequeById(chequeId);
+                } catch (_) {
+                  d = null;
+                }
+              }
+              // 3) Fallback to current user's own collection (issuer side when opening self)
               d ??= await ChequeService.instance.getChequeById(chequeId);
               return d;
             })(),

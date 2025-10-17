@@ -19,21 +19,102 @@ class ChequeHistoryScreen extends StatelessWidget {
         builder: (context, vm, _) => Scaffold(
           backgroundColor: AppColors.grey100,
           appBar: AppBar(
-            backgroundColor: AppColors.white,
+            backgroundColor: AppColors.primaryBlue,
             elevation: 0,
             title: Text(
               "Cheques History",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: AppColors.darkText,
+                color: Colors.white,
               ),
             ),
             centerTitle: true,
-            leading: BackButton(color: Colors.black),
+            leading: BackButton(color: Colors.white),
             actions: [
               IconButton(
-                icon: Icon(Icons.filter_alt, color: AppColors.primaryBlue),
-                onPressed: () {},
+                icon: const Icon(Icons.filter_list, color: Colors.white),
+                onPressed: () async {
+                  await showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                    ),
+                    builder: (ctx) {
+                      final padding = MediaQuery.of(ctx).viewInsets;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: padding.bottom),
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const Spacer(),
+                                  TextButton(
+                                    onPressed: vm.clearFilters,
+                                    child: const Text('Clear all'),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Name',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: vm.setNameQuery,
+                              ),
+                              const SizedBox(height: 12),
+                              TextField(
+                                decoration: const InputDecoration(
+                                  labelText: 'Bank',
+                                  border: OutlineInputBorder(),
+                                ),
+                                onChanged: vm.setBankQuery,
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                icon: const Icon(Icons.date_range),
+                                label: Text(
+                                  vm.dateRange == null
+                                      ? 'Pick date range'
+                                      : '${vm.dateRange!.start.year}-${vm.dateRange!.start.month.toString().padLeft(2,'0')}-${vm.dateRange!.start.day.toString().padLeft(2,'0')}  to  ${vm.dateRange!.end.year}-${vm.dateRange!.end.month.toString().padLeft(2,'0')}-${vm.dateRange!.end.day.toString().padLeft(2,'0')}',
+                                ),
+                                onPressed: () async {
+                                  final now = DateTime.now();
+                                  final picked = await showDateRangePicker(
+                                    context: ctx,
+                                    firstDate: DateTime(now.year - 5),
+                                    lastDate: DateTime(now.year + 5),
+                                    initialDateRange: vm.dateRange,
+                                  );
+                                  vm.setDateRange(picked);
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => Navigator.of(ctx).pop(),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('Apply Filters'),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
@@ -159,21 +240,24 @@ class ChequeHistoryScreen extends StatelessWidget {
                       );
                     }
 
-                    final clearedCount = docs
+                    // Apply filters
+                    final filteredDocs = docs.where(vm.matchesDoc).toList();
+
+                    final clearedCount = filteredDocs
                         .where(
                           (d) =>
                               (d['status']?.toString().toLowerCase() ?? '') ==
                               'cleared',
                         )
                         .length;
-                    final pendingCount = docs
+                    final pendingCount = filteredDocs
                         .where(
                           (d) =>
                               (d['status']?.toString().toLowerCase() ?? '') ==
                               'pending',
                         )
                         .length;
-                    final rejectedCount = docs
+                    final rejectedCount = filteredDocs
                         .where(
                           (d) =>
                               (d['status']?.toString().toLowerCase() ?? '') ==
@@ -181,16 +265,7 @@ class ChequeHistoryScreen extends StatelessWidget {
                         )
                         .length;
 
-                    final filtered = vm.showOnlyPending
-                        ? docs
-                              .where(
-                                (d) =>
-                                    (d['status']?.toString().toLowerCase() ??
-                                        'pending') ==
-                                    'pending',
-                              )
-                              .toList()
-                        : docs;
+                    final filtered = filteredDocs;
 
                     final List<Widget> children = [
                       Container(
@@ -307,7 +382,7 @@ class ChequeHistoryScreen extends StatelessWidget {
                     double clearedTotal = 0,
                         pendingTotal = 0,
                         rejectedTotal = 0;
-                    for (final d in docs) {
+                    for (final d in filteredDocs) {
                       final statusStr =
                           (d['status']?.toString().toLowerCase() ?? 'pending');
                       final amount = (d['amount'] is num)

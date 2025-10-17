@@ -15,6 +15,28 @@ class BankService {
     return q.docs.first.data();
   }
 
+  Future<List<Map<String, dynamic>>> searchByPhonePrefix(String prefix, {int limit = 5}) async {
+    if (prefix.isEmpty) return [];
+    final end = prefix.substring(0, prefix.length - 1) + String.fromCharCode(prefix.codeUnitAt(prefix.length - 1) + 1);
+    final q = await _bankUsers
+        .where('phone', isGreaterThanOrEqualTo: prefix)
+        .where('phone', isLessThan: end)
+        .limit(limit)
+        .get();
+    return q.docs.map((d) => d.data()).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> searchByUpiPrefix(String prefix, {int limit = 5}) async {
+    if (prefix.isEmpty) return [];
+    final end = prefix.substring(0, prefix.length - 1) + String.fromCharCode(prefix.codeUnitAt(prefix.length - 1) + 1);
+    final q = await _bankUsers
+        .where('upi', isGreaterThanOrEqualTo: prefix)
+        .where('upi', isLessThan: end)
+        .limit(limit)
+        .get();
+    return q.docs.map((d) => d.data()).toList();
+  }
+
   Future<Map<String, dynamic>?> findByAccount(String accountNumber) async {
     if (accountNumber.isEmpty) return null;
     final q = await _bankUsers

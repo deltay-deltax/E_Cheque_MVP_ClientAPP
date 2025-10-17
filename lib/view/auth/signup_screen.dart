@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -203,12 +204,14 @@ class _SignupScreenState extends State<SignupScreen> {
                               AppRoutes.home,
                               (route) => false,
                             );
+                          } on FirebaseAuthException catch (e) {
+                            final msg = e.message ?? 'Auth error: ${e.code}';
+                            if (mounted) {
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(content: Text(msg)));
+                            }
                           } catch (e) {
-                            final msg = e.toString().contains('bank_email_not_registered')
-                                ? 'Use your bank-registered email to sign up or sign in.'
-                                : (e.toString().contains('email_already_exists')
-                                    ? 'Email already exists. Please sign in.'
-                                    : 'Sign up failed. Please try again.');
+                            final msg = e.toString();
                             if (mounted) {
                               ScaffoldMessenger.of(context)
                                   .showSnackBar(SnackBar(content: Text(msg)));
