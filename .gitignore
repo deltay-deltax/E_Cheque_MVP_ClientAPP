@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+
+# Flutter secret keys
+lib/services/key.dart
+
+# Admin config (Node/JS secrets)
+admin/config.js

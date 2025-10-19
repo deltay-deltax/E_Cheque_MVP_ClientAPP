@@ -201,7 +201,7 @@ class _SignupScreenState extends State<SignupScreen> {
                             if (!mounted) return;
                             Navigator.pushNamedAndRemoveUntil(
                               context,
-                              AppRoutes.home,
+                              AppRoutes.login,
                               (route) => false,
                             );
                           } on FirebaseAuthException catch (e) {

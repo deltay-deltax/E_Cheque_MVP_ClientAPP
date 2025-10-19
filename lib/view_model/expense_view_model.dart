@@ -111,17 +111,26 @@ class ExpenseViewModel extends ChangeNotifier {
       ),
     );
 
+    // Try to include sender's account number for precise bankUsers mapping
+    String? fromAccount;
+    try {
+      final userDoc = await _db.collection('users').doc(uid).get();
+      fromAccount = (userDoc.data()?['bank']?['accountNumber'])?.toString();
+    } catch (_) {}
+
     await _db.collection('transactions').add({
       'userId': uid,
       'amount': parsedAmount,
       'direction': 'debit',
       'status': 'Completed',
-      'source': 'manual',
+      'source': 'expense',
+      'method': 'expense',
       'note': writeName.isNotEmpty ? writeName : selectedName,
       'payeeName': writeName,
       'categoryId': category.id,
       'categoryName': category.name,
       'at': Timestamp.fromDate(selectedDate),
+      if (fromAccount != null && fromAccount.isNotEmpty) 'details': { 'fromAccount': fromAccount },
     });
   }
 

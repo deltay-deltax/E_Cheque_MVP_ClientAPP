@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bank Users Admin</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#f7f7fb; margin:0; }
+    .container { max-width: 840px; margin: 40px auto; background:#fff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    p.sub { margin: 0 0 20px; color:#666; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .grid-1 { display:grid; grid-template-columns: 1fr; gap: 12px; }
+    label { font-size: 13px; color:#333; display:block; margin-bottom: 6px; }
+    input { width:100%; padding:10px 12px; border:1px solid #e5e7eb; border-radius: 8px; font-size: 14px; }
+    input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+    .row { margin-bottom: 12px; }
+    .actions { margin-top: 16px; display:flex; gap:12px; }
+    button { background:#2563eb; color:#fff; border:0; padding:10px 16px; border-radius: 8px; cursor:pointer; font-weight:600; }
+    button.secondary { background:#f3f4f6; color:#111827; }
+    .msg { margin-top: 14px; font-size: 14px; }
+    .ok { color:#065f46; }
+    .err { color:#991b1b; }
+    .note { background:#f9fafb; border:1px dashed #e5e7eb; border-radius:8px; padding:12px; font-size:13px; color:#374151; }
+  </style>
+  <script src="./config.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Bank Users Admin</h1>
+    <p class="sub">Create or update bankUsers documents via Cloud Function.</p>
+
+    <div class="note">
+      <div><strong>Instructions</strong></div>
+      <div>1) Copy <code>config.example.js</code> to <code>config.js</code> and fill your Function URL and Admin Key.</div>
+      <div>2) Fill the form and click Save. UID will be auto-generated.</div>
+    </div>
+
+    <form id="f" class="grid" onsubmit="return false;">
+      <div class="row">
+        <label>Full Name</label>
+        <input id="fullName" required />
+      </div>
+      <div class="row">
+        <label>Email</label>
+        <input id="email" type="email" required />
+      </div>
+      <div class="row">
+        <label>Phone</label>
+        <input id="phone" required />
+      </div>
+      <div class="row">
+        <label>Account Number</label>
+        <input id="accountNumber" required />
+      </div>
+      <div class="row">
+        <label>Account Type</label>
+        <input id="accountType" value="savings" required />
+      </div>
+      <div class="row">
+        <label>Bank Name</label>
+        <input id="bankName" required />
+      </div>
+      <div class="row">
+        <label>Branch</label>
+        <input id="branch" required />
+      </div>
+      <div class="row">
+        <label>IFSC</label>
+        <input id="ifsc" required />
+      </div>
+      <div class="row">
+        <label>Balance</label>
+        <input id="balance" type="number" step="0.01" required />
+      </div>
+    </form>
+
+    <div class="actions">
+      <button id="saveBtn">Save bank user</button>
+      <button class="secondary" id="resetBtn" type="button">Reset</button>
+    </div>
+    <div id="msg" class="msg"></div>
+  </div>
+
+<script>
+(function(){
+  function el(id){ return document.getElementById(id); }
+  const msg = el('msg');
+  function setMsg(text, ok){ msg.textContent = text; msg.className = 'msg ' + (ok?'ok':'err'); }
+  function clearMsg(){ msg.textContent=''; msg.className='msg'; }
+  function reset(){ document.getElementById('f').reset(); clearMsg(); }
+  el('resetBtn').addEventListener('click', reset);
+
+  async function save(){
+    clearMsg();
+    const C = (window.ADMIN_CONFIG||{});
+    if(!C.FUNCTION_URL || !C.ADMIN_KEY){ setMsg('Missing config.js FUNCTION_URL/ADMIN_KEY', false); return; }
+    const payload = {
+      fullName: el('fullName').value.trim(),
+      email: el('email').value.trim(),
+      phone: el('phone').value.trim(),
+      accountNumber: el('accountNumber').value.trim(),
+      accountType: el('accountType').value.trim(),
+      bankName: el('bankName').value.trim(),
+      branch: el('branch').value.trim(),
+      ifsc: el('ifsc').value.trim(),
+      balance: Number(el('balance').value)
+    };
+    try{
+      const res = await fetch(C.FUNCTION_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': C.ADMIN_KEY },
+        body: JSON.stringify(payload)
+      });
+      const j = await res.json();
+      if(!res.ok){ throw new Error(j.error||('HTTP '+res.status)); }
+      setMsg('Saved bankUsers/'+(j.id||payload.uid), true);
+    }catch(e){ setMsg('Error: '+(e.message||e), false); }
+  }
+  el('saveBtn').addEventListener('click', save);
+})();
+</script>
+</body>
+</html>

@@ -21,6 +21,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.grey100,
@@ -106,11 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   );
                   await PrefsService.instance.setRememberMe(rememberMe);
                   if (!mounted) return;
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    AppRoutes.home,
-                    (route) => false,
-                  );
+                  Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
                 } on FirebaseAuthException catch (e) {
                   final msg = e.message ?? 'Auth error: ${e.code}';
                   if (mounted) {
@@ -151,11 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       await AuthService.instance.signInWithGoogle();
                       await PrefsService.instance.setRememberMe(true);
                       if (!mounted) return;
-                      Navigator.pushNamedAndRemoveUntil(
-                        context,
-                        AppRoutes.home,
-                        (route) => false,
-                      );
+                      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (route) => false);
                     } on FirebaseAuthException catch (e) {
                       String msg;
                       switch (e.code) {

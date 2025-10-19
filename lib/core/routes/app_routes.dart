@@ -17,6 +17,7 @@ import '../../view/link_bank/bank_add_modal_screen.dart';
 import '../../view/link_bank/bank_info_screen.dart';
 import '../../view/link_bank/link_with_mobile_screen.dart';
 import '../../view/root_gate.dart';
+import '../../view/chat/chat_screen.dart';
 
 class AppRoutes {
   // Splash/Auth
@@ -32,6 +33,7 @@ class AppRoutes {
 
   // Home
   static const String home = '/home';
+  static const String chat = '/chat';
   static const String bankAdd = '/bank/add';
   static const String bankInfo = '/bank/info';
   static const String linkWithMobile = '/bank/link-mobile';
@@ -74,6 +76,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const ForgotPasswordScreen());
       case home:
         return MaterialPageRoute(builder: (_) => const HomeScreen());
+      case chat:
+        return MaterialPageRoute(builder: (_) => ChatScreen());
       case bankAdd:
         return MaterialPageRoute(builder: (_) => const BankAddModalScreen());
       case bankInfo:

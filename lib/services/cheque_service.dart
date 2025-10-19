@@ -137,12 +137,7 @@ class ChequeService {
           final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
 
           if (issuerBal >= amt) {
-            // Deduct from issuer
-            txn.set(issuerRef, {
-              'bank': {
-                'balance': issuerBal - amt,
-              }
-            }, SetOptions(merge: true));
+            // Do not mutate balances on client; only set status. CF will settle.
             newStatus = 'cleared';
           } else {
             newStatus = 'bounced';

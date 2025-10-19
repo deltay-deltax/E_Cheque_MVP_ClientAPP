@@ -16,388 +16,632 @@ import '../tracker/transaction_history_screen.dart';
 import '../tracker/add_expense_screen.dart';
 import '../tracker/analytics_screen.dart';
 import '../tracker/add_category_screen.dart';
+import '../auth/bank_link_guard.dart';
+import '../chat/chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => HomeViewModel(),
-      child: Consumer<HomeViewModel>(
-        builder: (context, vm, _) {
-          // Process any due cheques after the first frame when Home loads
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            ChequeService.instance.processDueCheques();
-          });
-          return Scaffold(
-            backgroundColor: AppColors.white,
-            appBar: AppBar(
-              elevation: 0,
+    return BankLinkGuard(
+      child: ChangeNotifierProvider(
+        create: (_) => HomeViewModel(),
+        child: Consumer<HomeViewModel>(
+          builder: (context, vm, _) {
+            // Process any due cheques after the first frame when Home loads
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ChequeService.instance.processDueCheques();
+            });
+            return Scaffold(
               backgroundColor: AppColors.white,
-              automaticallyImplyLeading: false,
-              actions: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.notifications_none,
-                    color: Colors.black87,
-                  ),
-                  onPressed: () {},
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: CircleAvatar(
-                    backgroundColor: AppColors.primaryBlue,
-                    child: const Text(
-                      "AG",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+              appBar: AppBar(
+                elevation: 0,
+                backgroundColor: AppColors.white,
+                automaticallyImplyLeading: false,
+                actions: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_none,
+                      color: Colors.black87,
                     ),
+                    onPressed: () {},
                   ),
-                ),
-              ],
-            ),
-            body: Stack(
-              children: [
-                SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 8),
-                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                        stream: UserService.instance.streamCurrentUser(),
-                        builder: (context, snap) {
-                          final data = snap.data?.data();
-                          final name =
-                              (data?['fullName'] ?? data?['displayName'] ?? '')
-                                  as String?;
-                          final displayName =
-                              (name != null && name.trim().isNotEmpty)
-                              ? name.trim()
-                              : 'User';
-                          return Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Welcome back,",
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  color: AppColors.mutedText,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child:
+                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          stream: UserService.instance.streamCurrentUser(),
+                          builder: (context, snap) {
+                            String initials = 'U';
+                            final data = snap.data?.data();
+                            final name =
+                                (data?['fullName'] ??
+                                        data?['displayName'] ??
+                                        '')
+                                    as String?;
+                            if (name != null && name.trim().isNotEmpty) {
+                              final parts = name.trim().split(RegExp(r"\s+"));
+                              final first = parts.isNotEmpty ? parts.first : '';
+                              final last = parts.length > 1 ? parts.last : '';
+                              final i1 = first.isNotEmpty ? first[0] : '';
+                              final i2 = last.isNotEmpty ? last[0] : '';
+                              initials = (i1 + i2).toUpperCase();
+                            }
+                            return CircleAvatar(
+                              backgroundColor: AppColors.primaryBlue,
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                displayName,
-                                style: TextStyle(
-                                  fontSize: 27,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.darkText,
+                            );
+                          },
+                        ),
+                  ),
+                ],
+              ),
+              body: Stack(
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          stream: UserService.instance.streamCurrentUser(),
+                          builder: (context, snap) {
+                            final data = snap.data?.data();
+                            final name =
+                                (data?['fullName'] ??
+                                        data?['displayName'] ??
+                                        '')
+                                    as String?;
+                            final displayName =
+                                (name != null && name.trim().isNotEmpty)
+                                ? name.trim()
+                                : 'User';
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Welcome back,",
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    color: AppColors.mutedText,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 24),
-                      // Show balance card only when bank is linked; balance from users/{uid}.bank.balance for latest updates
-                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                        stream: UserService.instance.streamCurrentUser(),
-                        builder: (context, snapshot) {
-                          final data = snapshot.data?.data();
-                          final bankLinked =
-                              (data?['bankLinked'] as bool?) ?? false;
-                          if (!bankLinked) return const SizedBox.shrink();
-                          final bank =
-                              (data?['bank'] as Map<String, dynamic>?) ?? {};
-                          final bal = (bank['balance'] as num?)?.toDouble();
-                          final acct = bank['accountNumber']?.toString();
-                          final displayBal = bal != null
-                              ? '₹${bal.toStringAsFixed(2)}'
-                              : null;
-                          return _BalanceCard(
-                            vm: vm,
-                            overrideBalance: displayBal,
-                            overrideAccountNumber: acct,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      // Hide link card once bank is linked and PIN set
-                      StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                        stream: UserService.instance.streamCurrentUser(),
-                        builder: (context, snapshot) {
-                          final data = snapshot.data?.data();
-                          final bankLinked =
-                              (data?['bankLinked'] as bool?) ?? false;
-                          final pinSet = (() {
-                            final legacy =
-                                (data?['transactionPinHash'] as String?) !=
-                                null;
-                            final obj =
-                                data?['transactionPin']
-                                    as Map<String, dynamic>?;
-                            final v2 = (obj?['hash'] as String?) != null;
-                            return legacy || v2;
-                          })();
-                          if (bankLinked && pinSet) {
-                            return const SizedBox.shrink();
-                          }
-                          return const _LinkCard();
-                        },
-                      ),
-                      const SizedBox(height: 22),
-                      Text(
-                        "Quick Actions",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
+                                const SizedBox(height: 2),
+                                Text(
+                                  displayName,
+                                  style: TextStyle(
+                                    fontSize: 27,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.darkText,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      _QuickActionsGrid(vm: vm),
-                      const SizedBox(height: 15),
-                      Text(
-                        "This Month",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
+                        const SizedBox(height: 24),
+                        // Balance card: prefer bankUsers by accountNumber, then users/{uid}.bank.balance, then fallback sum
+                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          stream: UserService.instance.streamCurrentUser(),
+                          builder: (context, snapshot) {
+                            final data = snapshot.data?.data();
+                            debugPrint(
+                              '[Home] user stream update: hasData=${snapshot.hasData} bankLinked=${data?['bankLinked']}',
+                            );
+                            final bankLinked =
+                                (data?['bankLinked'] as bool?) ?? false;
+                            if (!bankLinked) return const SizedBox.shrink();
+                            final bank =
+                                (data?['bank'] as Map<String, dynamic>?) ?? {};
+                            final acct = bank['accountNumber']?.toString();
+                            final userDocBal = (bank['balance'] as num?)
+                                ?.toDouble();
+                            final bankUsersUid =
+                                (bank['uid'] as String?) ??
+                                FirebaseAuth.instance.currentUser?.uid;
+                            debugPrint(
+                              '[Home] derived acct=$acct userDocBal=$userDocBal bankUsersUid=$bankUsersUid',
+                            );
+                            return StreamBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>
+                            >(
+                              stream: (() {
+                                // Prefer to listen by account number to match admin-seeded bankUsers docs
+                                if (acct != null && acct.isNotEmpty) {
+                                  return FirebaseFirestore.instance
+                                      .collection('bankUsers')
+                                      .where('accountNumber', isEqualTo: acct)
+                                      .limit(1)
+                                      .snapshots()
+                                      .map(
+                                        (qs) => qs.docs.isNotEmpty
+                                            ? qs.docs.first
+                                            : null,
+                                      )
+                                      .where((doc) => doc != null)
+                                      .cast<
+                                        DocumentSnapshot<Map<String, dynamic>>
+                                      >();
+                                }
+                                // Fallback to doc by uid if no account number available
+                                if (bankUsersUid == null) {
+                                  return const Stream<
+                                    DocumentSnapshot<Map<String, dynamic>>
+                                  >.empty();
+                                }
+                                return FirebaseFirestore.instance
+                                    .collection('bankUsers')
+                                    .doc(bankUsersUid)
+                                    .snapshots();
+                              })(),
+                              builder: (context, buSnap) {
+                                final buBal =
+                                    (buSnap.data?.data()?['balance'] as num?)
+                                        ?.toDouble();
+                                debugPrint(
+                                  '[Home] bankUsers snapshot: exists=${buSnap.data?.exists} byAcct=${acct != null && acct.isNotEmpty} buBal=$buBal',
+                                );
+                                final preferredBal = buBal ?? userDocBal;
+                                final preferredBalStr = preferredBal != null
+                                    ? '₹${preferredBal.toStringAsFixed(2)}'
+                                    : null;
+                                return StreamBuilder<
+                                  QuerySnapshot<Map<String, dynamic>>
+                                >(
+                                  stream: (() {
+                                    final uid =
+                                        FirebaseAuth.instance.currentUser?.uid;
+                                    if (uid == null) {
+                                      return const Stream<
+                                        QuerySnapshot<Map<String, dynamic>>
+                                      >.empty();
+                                    }
+                                    return FirebaseFirestore.instance
+                                        .collection('transactions')
+                                        .where('userId', isEqualTo: uid)
+                                        .orderBy('at', descending: true)
+                                        .limit(500)
+                                        .snapshots();
+                                  })(),
+                                  builder: (context, txSnap) {
+                                    String? liveBalanceStr;
+                                    final docs = txSnap.data?.docs ?? const [];
+                                    if (txSnap.hasError) {
+                                      debugPrint(
+                                        '[Home] tx stream error: ${txSnap.error}',
+                                      );
+                                    }
+                                    debugPrint(
+                                      '[Home] tx stream update: count=${docs.length} state=${txSnap.connectionState}',
+                                    );
+                                    if (docs.isNotEmpty) {
+                                      double sum = 0;
+                                      double pendingImpact = 0;
+                                      for (final d in docs) {
+                                        final dd = d.data();
+                                        final dir =
+                                            (dd['direction'] as String?) ??
+                                            'debit';
+                                        final amt =
+                                            ((dd['amount'] as num?) ?? 0)
+                                                .toDouble();
+                                        final status =
+                                            (dd['status'] as String?) ??
+                                            'Completed';
+                                        final source =
+                                            (dd['source'] as String?) ?? '';
+                                        if (status == 'Completed') {
+                                          sum += dir == 'credit' ? amt : -amt;
+                                        } else if (status == 'Pending' &&
+                                            source != 'cheque') {
+                                          // Apply optimistic pending impact for non-cheque tx (e.g., mobile send)
+                                          pendingImpact += dir == 'credit'
+                                              ? amt
+                                              : -amt;
+                                        }
+                                      }
+                                      liveBalanceStr =
+                                          '₹${sum.toStringAsFixed(2)}';
+                                      debugPrint(
+                                        '[Home] computed live balance from tx = $liveBalanceStr',
+                                      );
+                                      if (preferredBal != null) {
+                                        final eff =
+                                            preferredBal + pendingImpact;
+                                        debugPrint(
+                                          '[Home] pendingImpact(non-cheque)=$pendingImpact effectiveDisplayed=$eff',
+                                        );
+                                        final effStr =
+                                            '₹${eff.toStringAsFixed(2)}';
+                                        return _BalanceCard(
+                                          vm: vm,
+                                          overrideBalance: effStr,
+                                          overrideAccountNumber: acct,
+                                        );
+                                      }
+                                    }
+                                    debugPrint(
+                                      '[Home] preferredBalStr=$preferredBalStr using=${preferredBalStr ?? liveBalanceStr}',
+                                    );
+                                    return _BalanceCard(
+                                      vm: vm,
+                                      overrideBalance:
+                                          preferredBalStr ?? liveBalanceStr,
+                                      overrideAccountNumber: acct,
+                                    );
+                                  },
+                                );
+                              },
+                            );
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 7),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(child: _InfoCard(data: vm.summaryCards[0])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _InfoCard(data: vm.summaryCards[1])),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(child: _InfoCard(data: vm.summaryCards[2])),
-                          const SizedBox(width: 8),
-                          Expanded(child: _InfoCard(data: vm.summaryCards[3])),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        "Recent Transactions",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.darkText,
+                        const SizedBox(height: 16),
+                        // Hide link card once bank is linked and PIN set
+                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                          stream: UserService.instance.streamCurrentUser(),
+                          builder: (context, snapshot) {
+                            final data = snapshot.data?.data();
+                            final bankLinked =
+                                (data?['bankLinked'] as bool?) ?? false;
+                            final pinSet = (() {
+                              final legacy =
+                                  (data?['transactionPinHash'] as String?) !=
+                                  null;
+                              final obj =
+                                  data?['transactionPin']
+                                      as Map<String, dynamic>?;
+                              final v2 = (obj?['hash'] as String?) != null;
+                              return legacy || v2;
+                            })();
+                            if (bankLinked && pinSet) {
+                              return const SizedBox.shrink();
+                            }
+                            return const _LinkCard();
+                          },
                         ),
-                      ),
-                      const SizedBox(height: 9),
-                      StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                        stream: (() {
-                          final uid = FirebaseAuth.instance.currentUser?.uid;
-                          if (uid == null) {
-                            return Stream<
+                        const SizedBox(height: 22),
+                        Text(
+                          "Quick Actions",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _QuickActionsGrid(vm: vm),
+                        const SizedBox(height: 15),
+                        Text(
+                          "This Month",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Builder(
+                          builder: (context) {
+                            final now = DateTime.now();
+                            final start = DateTime(now.year, now.month, 1);
+                            final end = DateTime(now.year, now.month + 1, 1);
+                            return StreamBuilder<
                               QuerySnapshot<Map<String, dynamic>>
-                            >.empty();
-                          }
-                          return FirebaseFirestore.instance
-                              .collection('transactions')
-                              .where('userId', isEqualTo: uid)
-                              .orderBy('at', descending: true)
-                              .limit(3)
-                              .snapshots();
-                        })(),
-                        builder: (context, snap) {
-                          if (snap.connectionState == ConnectionState.waiting) {
-                            return const Center(
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                            >(
+                              stream: (() {
+                                final uid =
+                                    FirebaseAuth.instance.currentUser?.uid;
+                                if (uid == null) {
+                                  return const Stream<
+                                    QuerySnapshot<Map<String, dynamic>>
+                                  >.empty();
+                                }
+                                return FirebaseFirestore.instance
+                                    .collection('transactions')
+                                    .where('userId', isEqualTo: uid)
+                                    .where(
+                                      'at',
+                                      isGreaterThanOrEqualTo:
+                                          Timestamp.fromDate(start),
+                                    )
+                                    .where(
+                                      'at',
+                                      isLessThan: Timestamp.fromDate(end),
+                                    )
+                                    .snapshots();
+                              })(),
+                              builder: (context, snap) {
+                                double monthIncome = 0;
+                                double monthExpense = 0;
+                                final docs = snap.data?.docs ?? const [];
+                                for (final d in docs) {
+                                  final data = d.data();
+                                  final dir =
+                                      (data['direction'] as String?) ?? 'debit';
+                                  final amt = ((data['amount'] as num?) ?? 0)
+                                      .toDouble();
+                                  if (dir == 'credit')
+                                    monthIncome += amt;
+                                  else
+                                    monthExpense += amt;
+                                }
+                                final incomeCard = SummaryCard(
+                                  'Income',
+                                  '₹${monthIncome.toStringAsFixed(2)}',
+                                  Icons.arrow_upward,
+                                  const Color(0xFF10B981),
+                                  '',
+                                );
+                                final expenseCard = SummaryCard(
+                                  'Expenses',
+                                  '₹${monthExpense.toStringAsFixed(2)}',
+                                  Icons.arrow_downward,
+                                  Colors.red,
+                                  '',
+                                );
+                                return Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: _InfoCard(data: incomeCard),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: _InfoCard(data: expenseCard),
+                                    ),
+                                  ],
+                                );
+                              },
                             );
-                          }
-                          final docs = snap.data?.docs ?? const [];
-                          if (docs.isEmpty) {
-                            return const Text(
-                              'No recent transactions',
-                              style: TextStyle(color: Colors.grey),
-                            );
-                          }
-                          return Column(
-                            children: docs.map((d) {
-                              final data = d.data();
-                              final dir =
-                                  (data['direction'] as String?) ?? 'debit';
-                              final incoming = dir == 'credit';
-                              final amount = ((data['amount'] as num?) ?? 0)
-                                  .toDouble();
-                              final note =
-                                  (data['note'] as String?) ??
-                                  (data['source'] as String? ?? 'Transaction');
-                              final atTs = data['at'];
-                              String time = '';
-                              if (atTs is Timestamp) {
-                                final dt = atTs.toDate();
-                                time =
-                                    '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-                              }
-                              return _TransactionCard(
-                                data: TransactionCardData(
-                                  note,
-                                  incoming ? 'Income' : 'Payment',
-                                  time.isEmpty ? '—' : time,
-                                  (incoming ? '+₹' : '-₹') +
-                                      amount.toStringAsFixed(2),
-                                  incoming ? 'Income' : 'Expense',
-                                  incoming
-                                      ? Icons.arrow_downward
-                                      : Icons.arrow_upward,
-                                  incoming
-                                      ? const Color(0xFF10B981)
-                                      : Colors.red,
+                          },
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: _InfoCard(data: vm.summaryCards[2]),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _InfoCard(data: vm.summaryCards[3]),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          "Recent Transactions",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.darkText,
+                          ),
+                        ),
+                        const SizedBox(height: 9),
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: (() {
+                            final uid = FirebaseAuth.instance.currentUser?.uid;
+                            if (uid == null) {
+                              return Stream<
+                                QuerySnapshot<Map<String, dynamic>>
+                              >.empty();
+                            }
+                            return FirebaseFirestore.instance
+                                .collection('transactions')
+                                .where('userId', isEqualTo: uid)
+                                .orderBy('at', descending: true)
+                                .limit(3)
+                                .snapshots();
+                          })(),
+                          builder: (context, snap) {
+                            if (snap.hasError) {
+                              return const Text(
+                                'Unable to load recent transactions. Please ensure Firestore index exists for userId+at.',
+                                style: TextStyle(color: Colors.redAccent),
+                              );
+                            }
+                            if (snap.connectionState ==
+                                ConnectionState.waiting) {
+                              return const Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                 ),
                               );
-                            }).toList(),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 100),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            floatingActionButton: FloatingActionButton(
-              mini: true,
-              backgroundColor: AppColors.primaryBlue,
-              onPressed: () {
-                showModalBottomSheet(
-                  context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(18),
+                            }
+                            final docs = snap.data?.docs ?? const [];
+                            if (docs.isEmpty) {
+                              return const Text(
+                                'No recent transactions',
+                                style: TextStyle(color: Colors.grey),
+                              );
+                            }
+                            return Column(
+                              children: docs.map((d) {
+                                final data = d.data();
+                                final dir =
+                                    (data['direction'] as String?) ?? 'debit';
+                                final incoming = dir == 'credit';
+                                final amount = ((data['amount'] as num?) ?? 0)
+                                    .toDouble();
+                                final note =
+                                    (data['note'] as String?) ??
+                                    (data['source'] as String? ??
+                                        'Transaction');
+                                final atTs = data['at'];
+                                String time = '';
+                                if (atTs is Timestamp) {
+                                  final dt = atTs.toDate();
+                                  time =
+                                      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                                }
+                                return _TransactionCard(
+                                  data: TransactionCardData(
+                                    note,
+                                    incoming ? 'Income' : 'Payment',
+                                    time.isEmpty ? '—' : time,
+                                    (incoming ? '+₹' : '-₹') +
+                                        amount.toStringAsFixed(2),
+                                    incoming ? 'Income' : 'Expense',
+                                    incoming
+                                        ? Icons.arrow_downward
+                                        : Icons.arrow_upward,
+                                    incoming
+                                        ? const Color(0xFF10B981)
+                                        : Colors.red,
+                                  ),
+                                );
+                              }).toList(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 100),
+                      ],
                     ),
                   ),
-                  builder: (_) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
+                ],
+              ),
+              floatingActionButton: FloatingActionButton(
+                mini: true,
+                backgroundColor: AppColors.primaryBlue,
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(18),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    Navigator.of(context).pop();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AddExpenseScreen(),
+                    ),
+                    builder: (_) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 16,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const AddExpenseScreen(),
+                                        ),
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            blurRadius: 10,
+                                            color: Colors.black12.withOpacity(
+                                              0.05,
+                                            ),
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          blurRadius: 10,
-                                          color: Colors.black12.withOpacity(
-                                            0.05,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.add_circle,
+                                            color: Color(0xFF2563EB),
+                                            size: 28,
                                           ),
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(
-                                          Icons.add_circle,
-                                          color: Color(0xFF2563EB),
-                                          size: 28,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Add Expense',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'Add Expense',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: InkWell(
-                                  onTap: () {
-                                    Navigator.of(context).pop();
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => const AddCategoryScreen(),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () {
+                                      Navigator.of(context).pop();
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const AddCategoryScreen(),
+                                        ),
+                                      );
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.white,
+                                        borderRadius: BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            blurRadius: 10,
+                                            color: Colors.black12.withOpacity(
+                                              0.05,
+                                            ),
+                                            offset: const Offset(0, 3),
+                                          ),
+                                        ],
                                       ),
-                                    );
-                                  },
-                                  borderRadius: BorderRadius.circular(16),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.white,
-                                      borderRadius: BorderRadius.circular(16),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          blurRadius: 10,
-                                          color: Colors.black12.withOpacity(
-                                            0.05,
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(
+                                            Icons.category,
+                                            color: Color(0xFF2563EB),
+                                            size: 28,
                                           ),
-                                          offset: const Offset(0, 3),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(
-                                          Icons.category,
-                                          color: Color(0xFF2563EB),
-                                          size: 28,
-                                        ),
-                                        SizedBox(height: 8),
-                                        Text(
-                                          'Add Category',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
+                                          SizedBox(height: 8),
+                                          Text(
+                                            'Add Category',
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                           ),
-                                        ),
-                                      ],
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    );
-                  },
-                );
-              },
-              child: const Icon(Icons.add, color: Colors.white),
-            ),
-            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-            bottomNavigationBar: _buildBottomNav(context, 0),
-          );
-        },
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+              floatingActionButtonLocation:
+                  FloatingActionButtonLocation.endFloat,
+              bottomNavigationBar: _buildBottomNav(context, 0),
+            );
+          },
+        ),
       ),
     );
   }
@@ -419,15 +663,9 @@ Widget _buildBottomNav(BuildContext context, int currentIndex) {
           );
           break;
         case 1:
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const _NavPageScaffold(
-                title: 'Chat',
-                selectedIndex: 1,
-                message: 'Chat (Coming soon)',
-              ),
-            ),
-          );
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => ChatScreen()));
           break;
         case 2:
           Navigator.of(

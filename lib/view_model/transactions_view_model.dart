@@ -110,6 +110,7 @@ class TransactionsViewModel extends ChangeNotifier {
     final amount = ((data['amount'] as num?) ?? 0).toDouble();
     final note = (data['note'] as String?) ?? (data['source'] as String? ?? 'Transaction');
     final bankName = (data['bankName'] as String?) ?? '';
+    final categoryName = (data['categoryName'] as String?) ?? '';
     final atTs = data['at'];
     String dateStr = '';
     if (atTs is Timestamp) {
@@ -119,7 +120,9 @@ class TransactionsViewModel extends ChangeNotifier {
     final type = incoming ? TransactionType.income : TransactionType.expense;
     return TransactionItem(
       title: note,
-      subtitle: bankName.isNotEmpty ? bankName : (incoming ? 'Income' : 'Payment'),
+      subtitle: categoryName.isNotEmpty
+          ? categoryName
+          : (bankName.isNotEmpty ? bankName : (incoming ? 'Income' : 'Payment')),
       icon: incoming ? Icons.arrow_downward : Icons.arrow_upward,
       bgColor: incoming ? const Color(0xFFE6FFF4) : const Color(0xFFFFE3E2),
       amount: amount,

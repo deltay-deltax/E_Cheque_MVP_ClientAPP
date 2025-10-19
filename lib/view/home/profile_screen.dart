@@ -7,6 +7,9 @@ import '../../view_model/profile_view_model.dart';
 import '../../services/user_service.dart';
 import '../../services/bank_service.dart';
 import '../widgets/profile_tile.dart';
+import 'home_screen.dart';
+import '../chat/chat_screen.dart';
+import '../tracker/analytics_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -219,6 +222,39 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 15),
+            ],
+          ),
+          bottomNavigationBar: BottomNavigationBar(
+            type: BottomNavigationBarType.fixed,
+            currentIndex: 3,
+            selectedItemColor: AppColors.primaryBlue,
+            unselectedItemColor: AppColors.grey600,
+            backgroundColor: AppColors.white,
+            onTap: (idx) {
+              if (idx == 3) return;
+              switch (idx) {
+                case 0:
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  );
+                  break;
+                case 1:
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => ChatScreen()),
+                  );
+                  break;
+                case 2:
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+                  );
+                  break;
+              }
+            },
+            items: const [
+              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+              BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+              BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
+              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
             ],
           ),
         ),
