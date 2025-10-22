@@ -9,6 +9,12 @@ class HomeViewModel extends ChangeNotifier {
   String availableToSpend = "Available to spend";
   String mainCardSubtitle = "Total Balance";
 
+  bool showBalance = false;
+  void toggleShowBalance() {
+    showBalance = !showBalance;
+    notifyListeners();
+  }
+
   List<QuickAction> quickActions = [
     QuickAction(
       "E-Cheque",
@@ -60,17 +66,17 @@ class HomeViewModel extends ChangeNotifier {
     ),
     SummaryCard(
       "Savings",
-      "₹1,25,000",
+      "₹0.00",
       Icons.savings_outlined,
       Color(0xFF10B981),
-      "+10%",
+      "",
     ),
     SummaryCard(
       "Investments",
-      "₹66,600",
+      "₹0.00",
       Icons.trending_up,
       Color(0xFF10B981),
-      "+8%",
+      "",
     ),
   ];
 

@@ -10,6 +10,7 @@ class CustomTextField extends StatelessWidget {
   final bool obscureText;
   final bool readOnly;
   final VoidCallback? onTap;
+  final String? prefixText;
 
   const CustomTextField({
     required this.controller,
@@ -20,6 +21,7 @@ class CustomTextField extends StatelessWidget {
     this.obscureText = false,
     this.readOnly = false,
     this.onTap,
+    this.prefixText,
     super.key,
   });
 
@@ -39,6 +41,8 @@ class CustomTextField extends StatelessWidget {
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, color: AppColors.mutedText, size: 26)
             : null,
+        prefixText: prefixText,
+        prefixStyle: const TextStyle(fontSize: 17, color: AppColors.darkText, fontWeight: FontWeight.w600),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(17),

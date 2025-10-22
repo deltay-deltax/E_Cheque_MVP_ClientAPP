@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'otp_verification_screen.dart';
 
 class LinkBankAccountScreen extends StatefulWidget {
   const LinkBankAccountScreen({super.key});
@@ -55,6 +56,21 @@ class _LinkBankAccountScreenState extends State<LinkBankAccountScreen> {
     }
   }
 
+  Future<void> _continueWithOtp() async {
+    // Navigate to OTP; on success, perform save (which will pop back)
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          initialPhone: FirebaseAuth.instance.currentUser?.phoneNumber,
+          onVerified: () {
+            // After phone verified, save bank details
+            _save();
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,8 +97,10 @@ class _LinkBankAccountScreenState extends State<LinkBankAccountScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                child: _saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('Save'),
+                onPressed: _saving ? null : _continueWithOtp,
+                child: _saving
+                    ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Continue'),
               ),
             )
           ],

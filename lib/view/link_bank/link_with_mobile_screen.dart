@@ -5,6 +5,7 @@ import '../../view_model/bank_link_view_model.dart';
 import '../../core/routes/app_routes.dart';
 import '../../services/bank_service.dart';
 import '../../services/user_service.dart';
+import '../auth/otp_verification_screen.dart';
 
 class LinkWithMobileScreen extends StatefulWidget {
   const LinkWithMobileScreen({super.key});
@@ -143,29 +144,34 @@ class _LinkWithMobileScreenState extends State<LinkWithMobileScreen> {
                               );
                               return;
                             }
-                            try {
-                              setState(() => _loading = true);
-                              final data = await BankService.instance.findByPhone(phone);
-                              if (data == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('No bank user found for this mobile number')),
-                                );
-                                setState(() => _loading = false);
-                                return;
-                              }
-                              await UserService.instance.linkBankToUser(data);
-                              if (!context.mounted) return;
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Bank details linked. Set your transaction PIN.')),
-                              );
-                              Navigator.pushNamed(context, AppRoutes.pinCreate);
-                            } catch (e) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Failed: $e')),
-                              );
-                            } finally {
-                              if (mounted) setState(() => _loading = false);
-                            }
+                            // Step 1: OTP verify the entered number
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => OtpVerificationScreen(
+                                  initialPhone: phone,
+                                  onVerified: () async {
+                                    try {
+                                      setState(() => _loading = true);
+                                      // Step 2: Link bank by phone (previous behavior)
+                                      final data = await BankService.instance.findByPhone(phone);
+                                      if (data != null) {
+                                        await UserService.instance.linkBankToUser(data);
+                                      }
+                                      if (!mounted) return;
+                                      // Step 3: Go to Create PIN
+                                      Navigator.pushNamed(context, AppRoutes.pinCreate);
+                                    } catch (e) {
+                                      if (!mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Failed: $e')),
+                                      );
+                                    } finally {
+                                      if (mounted) setState(() => _loading = false);
+                                    }
+                                  },
+                                ),
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryBlue,

@@ -45,6 +45,9 @@ class ChequeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(17),
+        border: statusDotColor != null
+            ? Border.all(color: statusDotColor!.withOpacity(0.9), width: 1.4)
+            : null,
         boxShadow: [
           BoxShadow(
             blurRadius: 8,
@@ -91,16 +94,6 @@ class ChequeCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (statusDotColor != null)
-                            Container(
-                              width: 8,
-                              height: 8,
-                              margin: const EdgeInsets.only(left: 6),
-                              decoration: BoxDecoration(
-                                color: statusDotColor,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
                         ],
                       ),
                     ),

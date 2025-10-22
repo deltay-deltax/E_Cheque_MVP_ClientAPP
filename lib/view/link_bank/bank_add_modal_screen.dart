@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../view_model/bank_link_view_model.dart';
 import '../../core/routes/app_routes.dart';
+import '../auth/otp_verification_screen.dart';
 import '../../services/bank_service.dart';
 import '../../services/user_service.dart';
 
@@ -139,25 +140,35 @@ class BankAddModalScreen extends StatelessWidget {
                             );
                             return;
                           }
-                          try {
-                            final data = await BankService.instance.findByAccount(acc);
-                            if (data == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('No bank user found for this account number')),
-                              );
-                              return;
-                            }
-                            await UserService.instance.linkBankToUser(data);
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Bank details linked. Set your transaction PIN.')),
-                            );
-                            Navigator.pushNamed(context, AppRoutes.pinCreate);
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed: $e')),
-                            );
-                          }
+                          // Step 1: OTP verify (uses current user's phone from auth/db inside screen)
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => OtpVerificationScreen(
+                                onVerified: () async {
+                                  try {
+                                    // Step 2: Link bank by account (previous behavior)
+                                    final data = await BankService.instance.findByAccount(acc);
+                                    if (data == null) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('No bank user found for this account number')),
+                                      );
+                                      return;
+                                    }
+                                    await UserService.instance.linkBankToUser(data);
+                                    if (!context.mounted) return;
+                                    // Step 3: Go to Create PIN
+                                    Navigator.pushNamed(context, AppRoutes.pinCreate);
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed: $e')),
+                                    );
+                                  }
+                                },
+                              ),
+                            ),
+                          );
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryBlue,

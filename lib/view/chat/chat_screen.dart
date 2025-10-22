@@ -7,15 +7,22 @@ import 'package:echeque_mvp/view/home/home_screen.dart';
 import 'package:echeque_mvp/view/tracker/analytics_screen.dart';
 import 'package:echeque_mvp/view/home/profile_screen.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ChatMessage {
   final String sender;
   final String text;
-  ChatMessage({required this.sender, required this.text});
+  final int ts; // epoch millis
+  ChatMessage({required this.sender, required this.text, int? ts})
+      : ts = ts ?? DateTime.now().millisecondsSinceEpoch;
 
-  Map<String, dynamic> toMap() => {'sender': sender, 'text': text};
-  factory ChatMessage.fromMap(Map map) =>
-      ChatMessage(sender: map['sender'], text: map['text']);
+  Map<String, dynamic> toMap() => {'sender': sender, 'text': text, 'ts': ts};
+  factory ChatMessage.fromMap(Map map) => ChatMessage(
+        sender: map['sender'],
+        text: map['text'],
+        ts: (map['ts'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+      );
 }
 
 class ChatScreen extends StatefulWidget {
@@ -79,7 +86,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
-    try { _stt.stop(); } catch (_) {}
+    try {
+      _stt.stop();
+    } catch (_) {}
     _typingTimer?.cancel();
     controller.dispose();
     super.dispose();
@@ -87,7 +96,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> openHiveBox() async {
     chatBox = await Hive.openBox('chatHistory');
+    await _purgeOldFromBox();
     loadMessages();
+    _scrollToBottom();
     if (messages.isEmpty) {
       final greet = ChatMessage(
         sender: 'ai',
@@ -96,6 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
       messages.add(greet);
       chatBox.add(greet.toMap());
       setState(() {});
+      _scrollToBottom();
     }
   }
 
@@ -104,6 +116,18 @@ class _ChatScreenState extends State<ChatScreen> {
         .map((msg) => ChatMessage.fromMap(Map<String, dynamic>.from(msg)))
         .toList();
     setState(() {});
+  }
+
+  Future<void> _purgeOldFromBox() async {
+    final cutoff = DateTime.now().millisecondsSinceEpoch - 2 * 60 * 60 * 1000;
+    final items = chatBox.values
+        .map((msg) => ChatMessage.fromMap(Map<String, dynamic>.from(msg)))
+        .where((m) => m.ts >= cutoff)
+        .toList();
+    await chatBox.clear();
+    for (final m in items) {
+      await chatBox.add(m.toMap());
+    }
   }
 
   Future<void> sendMessage(String text) async {
@@ -151,6 +175,268 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  // ---------------- Quick Chips (Live Data) ----------------
+  Future<void> _chipTotalBalance() async {
+    final userQ = ChatMessage(
+      sender: 'user',
+      text: 'What is my total account balance?',
+    );
+    messages.add(userQ);
+    chatBox.add(userQ.toMap());
+    setState(() {});
+    _scrollToBottom();
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw 'Not logged in';
+
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+      final uData = userDoc.data() ?? {};
+      final bank = (uData['bank'] as Map<String, dynamic>?) ?? {};
+      final acct = bank['accountNumber']?.toString();
+      final userDocBal = (bank['balance'] as num?)?.toDouble();
+
+      double? preferredBal;
+      if (acct != null && acct.isNotEmpty) {
+        final qs = await FirebaseFirestore.instance
+            .collection('bankUsers')
+            .where('accountNumber', isEqualTo: acct)
+            .limit(1)
+            .get();
+        if (qs.docs.isNotEmpty) {
+          preferredBal = (qs.docs.first.data()['balance'] as num?)?.toDouble();
+        }
+      }
+      preferredBal ??= userDocBal;
+
+      if (preferredBal == null) {
+        final tx = await FirebaseFirestore.instance
+            .collection('transactions')
+            .where('userId', isEqualTo: uid)
+            .orderBy('at', descending: true)
+            .limit(500)
+            .get();
+        double sum = 0;
+        for (final d in tx.docs) {
+          final data = d.data();
+          final dir = (data['direction'] as String?) ?? 'debit';
+          final amt = ((data['amount'] as num?) ?? 0).toDouble();
+          sum += dir == 'credit' ? amt : -amt;
+        }
+        preferredBal = sum;
+      }
+
+      final ai = ChatMessage(
+        sender: 'ai',
+        text:
+            'Your total balance is ₹${(preferredBal ?? 0).toStringAsFixed(2)}.',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    } catch (e) {
+      final ai = ChatMessage(sender: 'ai', text: 'Unable to fetch balance: $e');
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _chipLast3() async {
+    final userQ = ChatMessage(
+      sender: 'user',
+      text: 'Show my last 3 transactions.',
+    );
+    messages.add(userQ);
+    chatBox.add(userQ.toMap());
+    setState(() {});
+    _scrollToBottom();
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw 'Not logged in';
+      final qs = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('userId', isEqualTo: uid)
+          .orderBy('at', descending: true)
+          .limit(3)
+          .get();
+      if (qs.docs.isEmpty) {
+        final ai = ChatMessage(sender: 'ai', text: 'No recent transactions.');
+        messages.add(ai);
+        chatBox.add(ai.toMap());
+        setState(() {});
+        _scrollToBottom();
+        return;
+      }
+      final lines = <String>[];
+      for (final d in qs.docs) {
+        final data = d.data();
+        final dir = (data['direction'] as String?) ?? 'debit';
+        final incoming = dir == 'credit';
+        final amount = ((data['amount'] as num?) ?? 0).toDouble();
+        final note =
+            (data['note'] as String?) ??
+            (data['source'] as String? ?? 'Transaction');
+        final sign = incoming ? '+' : '-';
+        lines.add('$sign₹${amount.toStringAsFixed(2)} ${incoming ? 'Income' : 'Expense'} (${note})');
+      }
+      final ai = ChatMessage(
+        sender: 'ai',
+        text: 'Last 3:\n${lines.join("\n")}',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    } catch (e) {
+      final ai = ChatMessage(
+        sender: 'ai',
+        text: 'Unable to load transactions: $e',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _chipSpendingThisMonth() async {
+    final userQ = ChatMessage(
+      sender: 'user',
+      text: 'Summarize my spending for this month.',
+    );
+    messages.add(userQ);
+    chatBox.add(userQ.toMap());
+    setState(() {});
+    _scrollToBottom();
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw 'Not logged in';
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, 1);
+      final end = DateTime(now.year, now.month + 1, 1);
+      final qs = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('userId', isEqualTo: uid)
+          .where('at', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('at', isLessThan: Timestamp.fromDate(end))
+          .get();
+      double spend = 0;
+      final byCat = <String, double>{};
+      for (final d in qs.docs) {
+        final data = d.data();
+        final dir = (data['direction'] as String?) ?? 'debit';
+        if (dir != 'debit') continue;
+        final amt = ((data['amount'] as num?) ?? 0).toDouble();
+        spend += amt;
+        final cat = (data['categoryName'] as String?) ?? 'Other';
+        byCat.update(cat, (v) => v + amt, ifAbsent: () => amt);
+      }
+      final topCats = byCat.entries.toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
+      final catLines = topCats
+          .take(5)
+          .map((e) => '- ${e.key}: ₹${e.value.toStringAsFixed(2)}')
+          .join('\n');
+      final ai = ChatMessage(
+        sender: 'ai',
+        text:
+            'This month spending: ₹${spend.toStringAsFixed(2)}' +
+            (catLines.isNotEmpty ? '\nCategories:\n$catLines' : ''),
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    } catch (e) {
+      final ai = ChatMessage(
+        sender: 'ai',
+        text: 'Unable to compute month spend: $e',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    }
+  }
+
+  Future<void> _chipShowCategories() async {
+    final userQ = ChatMessage(
+      sender: 'user',
+      text: 'Show my spending by category.',
+    );
+    messages.add(userQ);
+    chatBox.add(userQ.toMap());
+    setState(() {});
+    _scrollToBottom();
+
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) throw 'Not logged in';
+      final now = DateTime.now();
+      final start = DateTime(now.year, now.month, 1);
+      final end = DateTime(now.year, now.month + 1, 1);
+      final qs = await FirebaseFirestore.instance
+          .collection('transactions')
+          .where('userId', isEqualTo: uid)
+          .where('at', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('at', isLessThan: Timestamp.fromDate(end))
+          .get();
+      double total = 0;
+      final byCat = <String, double>{};
+      for (final d in qs.docs) {
+        final data = d.data();
+        final dir = (data['direction'] as String?) ?? 'debit';
+        if (dir != 'debit') continue;
+        final amt = ((data['amount'] as num?) ?? 0).toDouble();
+        total += amt;
+        final cat = (data['categoryName'] as String?) ?? 'Other';
+        byCat.update(cat, (v) => v + amt, ifAbsent: () => amt);
+      }
+      if (byCat.isEmpty) {
+        final ai = ChatMessage(
+          sender: 'ai',
+          text: 'No categories found for this month.',
+        );
+        messages.add(ai);
+        chatBox.add(ai.toMap());
+        setState(() {});
+        _scrollToBottom();
+        return;
+      }
+      final lines = byCat.entries
+          .map((e) {
+            final pct = total <= 0 ? 0 : (e.value / total * 100);
+            return '- ${e.key} ₹${e.value.toStringAsFixed(2)} (${pct.toStringAsFixed(0)}%)';
+          })
+          .join('\n');
+      final ai = ChatMessage(
+        sender: 'ai',
+        text: 'Categories this month:\n$lines',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    } catch (e) {
+      final ai = ChatMessage(
+        sender: 'ai',
+        text: 'Unable to load categories: $e',
+      );
+      messages.add(ai);
+      chatBox.add(ai.toMap());
+      setState(() {});
+      _scrollToBottom();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final Color userBubble = AppColors.primaryBlue;
@@ -180,30 +466,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   _QuickChip(
                     label: 'Total Balance',
                     icon: Icons.account_balance_wallet_outlined,
-                    onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'What is my total account balance?');
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text: 'Your total balance is ₹12,000.00.\n\nBreakup:\n- Primary: ₹8,000\n- Savings: ₹4,000',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
+                    onTap: () async {
+                      await _chipTotalBalance();
                     },
                   ),
                   _QuickChip(
                     label: 'Show Statement',
                     icon: Icons.receipt_long,
                     onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Show my latest bank statement.');
+                      final userQ = ChatMessage(
+                        sender: 'user',
+                        text: 'Show my latest bank statement.',
+                      );
                       messages.add(userQ);
                       chatBox.add(userQ.toMap());
                       final ai = ChatMessage(
                         sender: 'ai',
-                        text: 'Last 5 entries:\n1) -₹4000 Expense (House)\n2) -₹200 Mobile Money\n3) +₹10000 Salary\n4) -₹150 Food & Drink\n5) -₹250 Travel',
+                        text:
+                            'Last 5 entries:\n1) -₹4000 Expense (House)\n2) -₹200 Mobile Money\n3) +₹10000 Salary\n4) -₹150 Food & Drink\n5) -₹250 Travel',
                       );
                       messages.add(ai);
                       chatBox.add(ai.toMap());
@@ -214,47 +494,31 @@ class _ChatScreenState extends State<ChatScreen> {
                   _QuickChip(
                     label: 'Last 3 Transactions',
                     icon: Icons.history,
-                    onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Show my last 3 transactions.');
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text: 'Last 3:\n-₹4000 Expense (Rent)\n-₹200 Mobile Money to +91...\n+₹10000 Salary',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
+                    onTap: () async {
+                      await _chipLast3();
                     },
                   ),
                   _QuickChip(
                     label: 'Spending This Month',
                     icon: Icons.pie_chart_outline,
-                    onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Summarize my spending for this month.');
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text: 'This month spending: ₹4,400.\nCategories:\n- House: ₹4,000\n- Food: ₹150\n- Travel: ₹250\n\nChart:\n██████████  House\n█          Food\n██         Travel',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
+                    onTap: () async {
+                      await _chipSpendingThisMonth();
                     },
                   ),
                   _QuickChip(
                     label: 'Income vs Expense',
                     icon: Icons.trending_up,
                     onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Compare my income vs expenses for this month.');
+                      final userQ = ChatMessage(
+                        sender: 'user',
+                        text: 'Compare my income vs expenses for this month.',
+                      );
                       messages.add(userQ);
                       chatBox.add(userQ.toMap());
                       final ai = ChatMessage(
                         sender: 'ai',
-                        text: 'Income: ₹10,000\nExpense: ₹4,400\nNet: +₹5,600\n\nChart:\nIncome  ██████████\nExpense ████',
+                        text:
+                            'Income: ₹10,000\nExpense: ₹4,400\nNet: +₹5,600\n\nChart:\nIncome  ██████████\nExpense ████',
                       );
                       messages.add(ai);
                       chatBox.add(ai.toMap());
@@ -265,30 +529,24 @@ class _ChatScreenState extends State<ChatScreen> {
                   _QuickChip(
                     label: 'Show Categories',
                     icon: Icons.category_outlined,
-                    onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Show my spending by category.');
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text: 'Categories this month:\n- House ₹4,000 (91%)\n- Food & Drink ₹150 (3%)\n- Travel ₹250 (6%)',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
+                    onTap: () async {
+                      await _chipShowCategories();
                     },
                   ),
                   _QuickChip(
                     label: 'Set Budget',
                     icon: Icons.account_balance,
                     onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'Help me set a monthly budget.');
+                      final userQ = ChatMessage(
+                        sender: 'user',
+                        text: 'Help me set a monthly budget.',
+                      );
                       messages.add(userQ);
                       chatBox.add(userQ.toMap());
                       final ai = ChatMessage(
                         sender: 'ai',
-                        text: 'Suggested budget: ₹8,000 monthly.\nSplit:\n- Essentials ₹5,000\n- Discretionary ₹2,000\n- Savings ₹1,000',
+                        text:
+                            'Suggested budget: ₹8,000 monthly.\nSplit:\n- Essentials ₹5,000\n- Discretionary ₹2,000\n- Savings ₹1,000',
                       );
                       messages.add(ai);
                       chatBox.add(ai.toMap());
@@ -300,12 +558,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     label: 'Help',
                     icon: Icons.help_outline,
                     onTap: () {
-                      final userQ = ChatMessage(sender: 'user', text: 'What can you do?');
+                      final userQ = ChatMessage(
+                        sender: 'user',
+                        text: 'What can you do?',
+                      );
                       messages.add(userQ);
                       chatBox.add(userQ.toMap());
                       final ai = ChatMessage(
                         sender: 'ai',
-                        text: 'I can summarize your balances, recent transactions, category spend, and help with budgeting. Tap any chip above to try!',
+                        text:
+                            'I can summarize your balances, recent transactions, category spend, and help with budgeting. Tap any chip above to try!',
                       );
                       messages.add(ai);
                       chatBox.add(ai.toMap());
@@ -329,7 +591,10 @@ class _ChatScreenState extends State<ChatScreen> {
                     alignment: Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 18),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 13,
+                        horizontal: 18,
+                      ),
                       decoration: BoxDecoration(
                         color: aiBubble,
                         borderRadius: const BorderRadius.only(
@@ -504,16 +769,19 @@ class _ChatScreenState extends State<ChatScreen> {
               );
               break;
             case 3:
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
               break;
           }
         },
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-          BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),
+            label: 'Analytics',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
@@ -565,10 +833,10 @@ class _TypingDots extends StatelessWidget {
   }
 
   Widget _dot(Color c) => Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(color: c, shape: BoxShape.circle),
-      );
+    width: 8,
+    height: 8,
+    decoration: BoxDecoration(color: c, shape: BoxShape.circle),
+  );
 }
 
 class _QuickChip extends StatelessWidget {

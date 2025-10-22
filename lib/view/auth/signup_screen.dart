@@ -80,6 +80,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   hintText: "Phone Number",
                   prefixIcon: Icons.phone_outlined,
                   keyboardType: TextInputType.phone,
+                  prefixText: '+91 ',
                 ),
                 const SizedBox(height: 16),
                 CustomTextField(

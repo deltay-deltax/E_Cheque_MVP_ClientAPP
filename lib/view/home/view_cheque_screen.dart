@@ -5,6 +5,7 @@ import '../../core/constants/app_colors.dart';
 import '../../view_model/view_cheque_view_model.dart';
 import '../../services/cheque_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'cheque_history_screen.dart';
 
 class ViewChequeScreen extends StatelessWidget {
   final String chequeId;
@@ -13,6 +14,7 @@ class ViewChequeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final boundaryKey = GlobalKey();
     return ChangeNotifierProvider(
       create: (_) => ViewChequeViewModel(),
       child: Consumer<ViewChequeViewModel>(
@@ -38,7 +40,10 @@ class ViewChequeScreen extends StatelessWidget {
               Map<String, dynamic>? d;
               if (issuerUid != null && issuerUid!.isNotEmpty) {
                 try {
-                  d = await ChequeService.instance.getChequeById(chequeId, uid: issuerUid);
+                  d = await ChequeService.instance.getChequeById(
+                    chequeId,
+                    uid: issuerUid,
+                  );
                 } catch (_) {
                   d = null;
                 }
@@ -68,75 +73,82 @@ class ViewChequeScreen extends StatelessWidget {
                   ? (d['amount'] as num).toDouble()
                   : double.tryParse('${d['amount']}') ?? 0.0;
               final amountNumber = _formatAmount(amount);
-              final amountWords = "Rupees ${amount.toStringAsFixed(2)}"; // TODO: convert to words if needed
-              final shareData = {
-                ...d,
-                'date': dateText,
-              };
+              final amountWords = _amountInWordsIndian(amount);
+              final shareData = {...d, 'date': dateText};
               return ListView(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
                 children: [
-                  DigitalChequeCard(
-                    bankName: d['bankName'] ?? '',
-                    bankAddress: '',
-                    chequeNo: d['chequeNo'] ?? '',
-                    date: dateText,
-                    payee: d['payee'] ?? '',
-                    amountNumber: amountNumber,
-                    amountWords: amountWords,
-                    memo: d['notes'] ?? '',
-                    signatureName: (d['signaturePath'] ?? '') as String,
-                    microText: '*MICR*: ${d['chequeNo'] ?? ''}',
+                  RepaintBoundary(
+                    key: boundaryKey,
+                    child: DigitalChequeCard(
+                      bankName: d['bankName'] ?? '',
+                      bankAddress: '',
+                      chequeNo: d['chequeNo'] ?? '',
+                      date: dateText,
+                      payee: d['payee'] ?? '',
+                      amountNumber: amountNumber,
+                      amountWords: amountWords,
+                      memo: d['notes'] ?? '',
+                      signatureName: (d['signaturePath'] ?? '') as String,
+                      microText: '*MICR*: ${d['chequeNo'] ?? ''}',
+                    ),
                   ),
                   const SizedBox(height: 10),
-              Text(
-                "How to use this digital cheque",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-              const SizedBox(height: 10),
-              _ChequeStep(
-                step: 1,
-                title: "Share this cheque",
-                desc:
-                    "Securely share this digital cheque with the recipient via email or a messaging app. They will receive a unique and secure link.",
-              ),
-              _ChequeStep(
-                step: 2,
-                title: "Recipient deposits the cheque",
-                desc:
-                    "The recipient opens the link and follows the instructions to deposit the cheque into their bank account using their banking app’s mobile deposit feature.",
-              ),
-              _ChequeStep(
-                step: 3,
-                title: "Funds are transferred",
-                desc:
-                    "Once the cheque is successfully deposited and cleared, the funds will be transferred from your account to the recipient’s account.",
-              ),
-              const SizedBox(height: 28),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryBlue,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
+                  Text(
+                    "How to use this digital cheque",
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 10),
+                  _ChequeStep(
+                    step: 1,
+                    title: "Share this cheque",
+                    desc:
+                        "Securely share this digital cheque with the recipient via email or a messaging app. They will receive a unique and secure link.",
+                  ),
+                  _ChequeStep(
+                    step: 2,
+                    title: "Recipient deposits the cheque",
+                    desc:
+                        "The recipient opens the link and follows the instructions to deposit the cheque into their bank account using their banking app’s mobile deposit feature.",
+                  ),
+                  _ChequeStep(
+                    step: 3,
+                    title: "Funds are transferred",
+                    desc:
+                        "Once the cheque is successfully deposited and cleared, the funds will be transferred from your account to the recipient’s account.",
+                  ),
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
+                        ),
+                      ),
+                      onPressed: () => vm.shareCheque(
+                        context,
+                        shareData,
+                        captureKey: boundaryKey,
+                      ),
+                      child: const Text(
+                        "Share Cheque",
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ),
-                  onPressed: () => vm.shareCheque(context, shareData),
-                  child: Text(
-                    "Share Cheque",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 19),
-            ],
-          );
+                  const SizedBox(height: 19),
+                ],
+              );
             },
           ),
         ),
@@ -211,4 +223,89 @@ String _formatDate(dynamic dateField) {
 
 String _formatAmount(double amount) {
   return "₹${amount.toStringAsFixed(2)}";
+}
+
+String _amountInWordsIndian(double amount) {
+  // Supports up to crores with paise; rounds to 2 decimals for paise
+  final rupees = amount.floor();
+  final paise = ((amount - rupees) * 100).round();
+
+  final ones = [
+    '',
+    'One',
+    'Two',
+    'Three',
+    'Four',
+    'Five',
+    'Six',
+    'Seven',
+    'Eight',
+    'Nine',
+    'Ten',
+    'Eleven',
+    'Twelve',
+    'Thirteen',
+    'Fourteen',
+    'Fifteen',
+    'Sixteen',
+    'Seventeen',
+    'Eighteen',
+    'Nineteen',
+  ];
+  final tensNames = [
+    '',
+    '',
+    'Twenty',
+    'Thirty',
+    'Forty',
+    'Fifty',
+    'Sixty',
+    'Seventy',
+    'Eighty',
+    'Ninety',
+  ];
+
+  String twoDigitWord(int n) {
+    if (n == 0) return '';
+    if (n < 20) return ones[n];
+    final t = n ~/ 10;
+    final o = n % 10;
+    return o == 0 ? tensNames[t] : '${tensNames[t]} ${ones[o]}';
+  }
+
+  String threeDigitWord(int n) {
+    final h = n ~/ 100;
+    final rest = n % 100;
+    final hPart = h > 0 ? '${ones[h]} Hundred' : '';
+    final restPart = twoDigitWord(rest);
+    if (hPart.isNotEmpty && restPart.isNotEmpty) return '$hPart ${restPart}';
+    return hPart.isNotEmpty ? hPart : restPart;
+  }
+
+  if (rupees == 0 && paise == 0) {
+    return 'Rupees Zero only';
+  }
+
+  int n = rupees;
+  final crore = n ~/ 10000000;
+  n %= 10000000;
+  final lakh = n ~/ 100000;
+  n %= 100000;
+  final thousand = n ~/ 1000;
+  n %= 1000;
+  final hundred = n; // up to 999
+
+  final parts = <String>[];
+  if (crore > 0) parts.add('${threeDigitWord(crore)} Crore');
+  if (lakh > 0) parts.add('${threeDigitWord(lakh)} Lakh');
+  if (thousand > 0) parts.add('${threeDigitWord(thousand)} Thousand');
+  if (hundred > 0) parts.add(threeDigitWord(hundred));
+
+  final rupeesWords = parts.join(' ').trim();
+  final rupeesSection = rupeesWords.isEmpty ? 'Zero' : rupeesWords;
+  if (paise > 0) {
+    final paiseWords = twoDigitWord(paise);
+    return 'Rupees $rupeesSection and ${paiseWords} Paise only';
+  }
+  return 'Rupees $rupeesSection only';
 }

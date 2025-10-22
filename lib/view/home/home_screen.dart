@@ -68,13 +68,23 @@ class HomeScreen extends StatelessWidget {
                               final i2 = last.isNotEmpty ? last[0] : '';
                               initials = (i1 + i2).toUpperCase();
                             }
-                            return CircleAvatar(
-                              backgroundColor: AppColors.primaryBlue,
-                              child: Text(
-                                initials,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ProfileScreen(),
+                                  ),
+                                );
+                              },
+                              child: CircleAvatar(
+                                backgroundColor: AppColors.primaryBlue,
+                                child: Text(
+                                  initials,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             );
@@ -416,6 +426,8 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 12),
+
                         const SizedBox(height: 18),
                         Text(
                           "Recent Transactions",
@@ -778,14 +790,33 @@ class _BalanceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 7),
-          Text(
-            overrideBalance ?? vm.totalBalance,
-            style: const TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: -1,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  vm.showBalance
+                      ? (overrideBalance ?? vm.totalBalance)
+                      : '₹••••••',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: -1,
+                  ),
+                ),
+              ),
+              IconButton(
+                splashRadius: 20,
+                icon: Icon(
+                  vm.showBalance ? Icons.visibility : Icons.visibility_off,
+                  color: Colors.white,
+                ),
+                onPressed: vm.toggleShowBalance,
+              ),
+            ],
           ),
           const SizedBox(height: 3),
           Text(
@@ -910,7 +941,7 @@ class _QuickActionsGrid extends StatelessWidget {
       crossAxisCount: 3,
       crossAxisSpacing: 11,
       mainAxisSpacing: 11,
-      childAspectRatio: 0.9,
+      childAspectRatio: 0.85,
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       children: vm.quickActions
@@ -1020,13 +1051,12 @@ class _ActionItem extends StatelessWidget {
             Text(
               text,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.darkText,
               ),
               textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
             ),
           ],
         ),
@@ -1088,14 +1118,41 @@ class _InfoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 7),
-          Text(
-            data.value,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: AppColors.darkText,
-            ),
-          ),
+          () {
+            final isComingSoon =
+                data.label == 'Savings' || data.label == 'Investments';
+            if (!isComingSoon) {
+              return Text(
+                data.value,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: AppColors.darkText,
+                ),
+              );
+            }
+            return Row(
+              children: [
+                Text(
+                  data.value,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: AppColors.darkText,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'coming soon',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.mutedText,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            );
+          }(),
         ],
       ),
     );
