@@ -1,68 +1,298 @@
-// -------------------- Admin HTTPS: Create/Update bankUsers --------------------
-export const createOrUpdateBankUser = onRequest({ region: "asia-south1", cors: true, timeoutSeconds: 120, memory: "256MiB", secrets: ["ADMIN_SECRET"] }, async (req, res) => {
+// -------------------- Admin API (see adminApi below) --------------------
+// -------------------- Admin API (Multiplex) --------------------
+export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSeconds: 120, memory: "512MiB", secrets: ["ADMIN_SECRET"] }, async (req, res) => {
+  // Always set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, x-admin-key');
     return res.status(204).send('');
   }
+  // Allow simple GET for health checks
+  if (req.method === 'GET') {
+    return res.status(200).json({ ok: true });
+  }
   try {
-    if (req.method !== 'POST') {
-      return res.status(405).json({ error: 'Method not allowed' });
-    }
-    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
     const keyFromHeader = req.get('x-admin-key') || '';
     const keyFromQuery = (req.query.key || '').toString();
-    const provided = keyFromHeader || keyFromQuery;
+    const bodyRaw = typeof req.body === 'string' ? req.body : (req.body || {});
+    const bodyParsed = typeof bodyRaw === 'string' ? (()=>{ try { return JSON.parse(bodyRaw);} catch { return {}; }})() : bodyRaw;
+    const keyFromBody = (bodyParsed.adminKey || '').toString();
+    const provided = keyFromHeader || keyFromQuery || keyFromBody;
     const expected = process.env.ADMIN_SECRET || process.env.admin_secret;
-    if (!expected) {
-      return res.status(500).json({ error: 'Server not configured: ADMIN_SECRET missing' });
-    }
-    if (!provided || provided !== expected) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (!expected) return res.status(500).json({ error: 'Server not configured: ADMIN_SECRET missing' });
+    if (!provided || provided !== expected) return res.status(401).json({ error: 'Unauthorized' });
 
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
-    const required = ['fullName','email','phone','accountNumber','accountType','bankName','branch','ifsc','balance'];
-    for (const f of required) {
-      if (body[f] === undefined || body[f] === null || body[f] === '') {
-        return res.status(400).json({ error: `Missing field: ${f}` });
+    const body = bodyParsed;
+    const action = String(body.action || '').trim();
+
+    async function handleSaveBankUser() {
+      const required = ['fullName','email','phone','accountNumber','accountType','bankName','branch','ifsc','balance'];
+      for (const f of required) if (body[f] === undefined || body[f] === null || body[f] === '') return res.status(400).json({ error: `Missing field: ${f}` });
+      const providedUid = body.uid ? String(body.uid) : '';
+      const balance = Number(body.balance);
+      if (Number.isNaN(balance)) return res.status(400).json({ error: 'balance must be a number' });
+      const data = {
+        fullName: String(body.fullName),
+        email: String(body.email),
+        phone: String(body.phone),
+        accountNumber: String(body.accountNumber),
+        accountType: String(body.accountType),
+        bankName: String(body.bankName),
+        branch: String(body.branch),
+        ifsc: String(body.ifsc),
+        balance,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (providedUid) {
+        data.uid = providedUid;
+        await db.collection('bankUsers').doc(providedUid).set(data, { merge: true });
+        return res.status(200).json({ ok: true, id: providedUid });
+      } else {
+        const ref = await db.collection('bankUsers').add(data);
+        await ref.set({ uid: ref.id }, { merge: true });
+        return res.status(200).json({ ok: true, id: ref.id });
       }
     }
-    const providedUid = body.uid ? String(body.uid) : '';
-    const balance = Number(body.balance);
-    if (Number.isNaN(balance)) {
-      return res.status(400).json({ error: 'balance must be a number' });
+
+    async function handleListDeposits() {
+      const limit = Math.min(Number(body.limit || 100), 500);
+      const q = await db.collection('deposits').orderBy('createdAt', 'desc').limit(limit).get();
+      const items = q.docs.map(d => ({ id: d.id, ...d.data() }));
+      return res.status(200).json({ ok: true, items });
     }
 
-    const data = {
-      fullName: String(body.fullName),
-      email: String(body.email),
-      phone: String(body.phone),
-      accountNumber: String(body.accountNumber),
-      accountType: String(body.accountType),
-      bankName: String(body.bankName),
-      branch: String(body.branch),
-      ifsc: String(body.ifsc),
-      balance,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-
-    if (providedUid) {
-      data.uid = providedUid;
-      await db.collection('bankUsers').doc(providedUid).set(data, { merge: true });
-      return res.status(200).json({ ok: true, id: providedUid });
-    } else {
-      const ref = await db.collection('bankUsers').add(data);
-      // back-fill uid field to equal doc id for consistency
-      await ref.set({ uid: ref.id }, { merge: true });
-      return res.status(200).json({ ok: true, id: ref.id });
+    async function handleDepositGet() {
+      const id = String(body.depositId || '');
+      if (!id) return res.status(400).json({ error: 'depositId required' });
+      const snap = await db.collection('deposits').doc(id).get();
+      if (!snap.exists) return res.status(404).json({ error: 'not_found' });
+      return res.status(200).json({ ok: true, id, data: snap.data() });
     }
+
+    async function handleDepositPdf() {
+      const id = String(body.depositId || '');
+      const bankCopy = Boolean(body.bankCopy);
+      if (!id) return res.status(400).json({ error: 'depositId required' });
+      const snap = await db.collection('deposits').doc(id).get();
+      if (!snap.exists) return res.status(404).json({ error: 'not_found' });
+      const d = snap.data() || {};
+      // Build a simple PDF using INR text to avoid Unicode issues
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const chunks = [];
+      doc.on('data', (c) => chunks.push(c));
+      const done = new Promise((resolve) => doc.on('end', resolve));
+
+      doc.fontSize(20).text('Cash Deposit Slip' + (bankCopy ? ' - Bank Copy' : ''), { align: 'left' });
+      doc.moveDown(0.4);
+      doc.fontSize(11).text(`Receipt No.: ${d.slipNo || id}`);
+      doc.text(`Date: ${d.slipDate || ''}`);
+      doc.moveDown(0.6);
+
+      doc.fontSize(12).fillColor('#1f2937').text('Bank & Depositor Details', { underline: true });
+      doc.moveDown(0.2).fillColor('black');
+      doc.text(`Depositor: ${d.depositorName || ''}`);
+      doc.text(`Address: ${d.depositorAddress || ''}`);
+      doc.text(`Contact: ${d.depositorContact || ''}`);
+      doc.moveDown(0.6);
+
+      doc.fontSize(12).fillColor('#1f2937').text('Account Holder Details', { underline: true });
+      doc.moveDown(0.2).fillColor('black');
+      doc.text(`Name: ${d.accountHolderName || ''}`);
+      doc.text(`Account No.: ${d.accountNo || ''}`);
+      doc.text(`Account Type: ${d.accountType || ''}`);
+      doc.moveDown(0.6);
+
+      const amountStr = String(d.depositAmount || d.cashBreakdownTotal || '0');
+      doc.fontSize(12).fillColor('#1f2937').text('Deposit Amount', { underline: true });
+      doc.moveDown(0.2).fillColor('green').text(`Amount  INR ${amountStr}`, { continued: false });
+      if (d.amountInWords) doc.fillColor('black').text(`In Words  ${d.amountInWords}`);
+      doc.moveDown(0.6);
+
+      // Cash breakdown table
+      doc.fontSize(12).fillColor('#1f2937').text('Cash Breakdown', { underline: true });
+      doc.moveDown(0.2).fillColor('black');
+      const cb = d.cashBreakdown || {};
+      const rows = Object.keys(cb).map(k => ({ denom: Number(k), qty: Number(cb[k] || 0) })).filter(r => r.denom > 0);
+      rows.sort((a,b)=>b.denom-a.denom);
+      doc.text('Denomination      Quantity      Amount');
+      rows.forEach(r => {
+        const amt = (r.denom * r.qty).toFixed(2);
+        doc.text(`${r.denom.toString().padStart(4,' ')}                ${r.qty.toString().padStart(3,' ')}         INR ${amt}`);
+      });
+      doc.moveDown(0.2);
+      doc.text(`Total: INR ${String(d.cashBreakdownTotal || amountStr)}`);
+      doc.moveDown(0.6);
+
+      if (bankCopy) {
+        doc.fontSize(12).fillColor('#1f2937').text('Bank Authorization', { underline: true });
+        doc.moveDown(0.2).fillColor('black');
+        doc.text('Bank Stamp: __________________');
+        doc.text('Authorised Signatory: __________________');
+      } else {
+        doc.fontSize(12).fillColor('#1f2937').text('Signatures', { underline: true });
+        doc.moveDown(0.2).fillColor('black');
+        doc.text('Depositor Signature: __________________');
+        doc.text('Authorised Signatory: __________________');
+      }
+
+      doc.end();
+      await done;
+      const b64 = Buffer.concat(chunks).toString('base64');
+      return res.status(200).json({ ok: true, pdf: b64 });
+    }
+
+    async function resolveBankUserRefByAccount(accountNo) {
+      const qs = await db.collection('bankUsers').where('accountNumber', '==', String(accountNo)).limit(1).get();
+      return qs.empty ? null : qs.docs[0].ref;
+    }
+
+    async function handleVerifyDeposit() {
+      const id = String(body.depositId || '');
+      if (!id) return res.status(400).json({ error: 'depositId required' });
+      const depRef = db.collection('deposits').doc(id);
+      let senderTxId = null;
+      let receiverTxId = null;
+
+      // Resolve receiver bank user ref OUTSIDE the transaction (by account number)
+      // and sender bankUsers ref via sender's accountNumber so we can read the docs
+      // inside the transaction without additional queries.
+      const depOutside = await depRef.get();
+      const depDataOutside = depOutside.data() || {};
+      const accountNoOutside = depDataOutside.accountNo || depDataOutside.accountNumber || null;
+      const senderUidOutside = depDataOutside.userId || null;
+      let receiverBURefOutside = null;
+      let senderBURefOutside = null;
+      if (senderUidOutside) {
+        const senderUserOutsideRef = db.collection('users').doc(String(senderUidOutside));
+        const senderUserOutsideSnap = await senderUserOutsideRef.get();
+        const senderAcctOutside = senderUserOutsideSnap.get('bank.accountNumber');
+        if (senderAcctOutside) {
+          senderBURefOutside = await resolveBankUserRefByAccount(String(senderAcctOutside));
+        }
+      }
+      if (accountNoOutside) {
+        receiverBURefOutside = await resolveBankUserRefByAccount(accountNoOutside);
+      }
+
+      await db.runTransaction(async (t) => {
+        // READS (all before writes)
+        const depSnap = await t.get(depRef);
+        if (!depSnap.exists) throw new Error('not_found');
+        const d = depSnap.data() || {};
+        if ((d.status || 'Pending') === 'Verified') return; // idempotent
+        const amount = Number(d.depositAmount || d.cashBreakdownTotal || 0);
+        if (!(amount > 0)) throw new Error('invalid_amount');
+        const senderUid = d.userId || null;
+        const accountNo = d.accountNo || d.accountNumber || null;
+        if (!senderUid || !accountNo) throw new Error('missing_user_or_account');
+
+        const senderRef = db.collection('users').doc(senderUid);
+        const senderSnap = await t.get(senderRef);
+        const senderBank = senderSnap.get('bank') || {};
+        const senderBal = Number(senderBank.balance || 0);
+
+        let receiverUid = null;
+        let receiverRef = null;
+        let receiverSnap = null;
+        let receiverBank = {};
+        let receiverBal = 0;
+        let receiverBURef = receiverBURefOutside;
+        let receiverBUSnap = null;
+        let senderBURef = senderBURefOutside;
+        let senderBUSnap = null;
+        if (senderBURef) {
+          senderBUSnap = await t.get(senderBURef);
+        }
+        if (receiverBURef) {
+          receiverBUSnap = await t.get(receiverBURef);
+          receiverUid = receiverBUSnap.get('uid') || null;
+        }
+        if (receiverUid && receiverUid !== senderUid) {
+          receiverRef = db.collection('users').doc(String(receiverUid));
+          receiverSnap = await t.get(receiverRef);
+          receiverBank = receiverSnap.get('bank') || {};
+          receiverBal = Number(receiverBank.balance || 0);
+        }
+
+        // WRITES
+        const now = admin.firestore.FieldValue.serverTimestamp();
+
+        // Sender debit transaction
+        const senderTxRef = db.collection('transactions').doc();
+        senderTxId = senderTxRef.id;
+        t.set(senderTxRef, {
+          userId: senderUid,
+          direction: 'debit',
+          amount,
+          at: now,
+          source: 'cash_deposit',
+          status: 'Completed',
+          processedByCF: true,
+          details: { toAccount: accountNo, depositId: id },
+        });
+
+        // Receiver credit transaction (if resolved)
+        if (receiverRef) {
+          const receiverTxRef = db.collection('transactions').doc();
+          receiverTxId = receiverTxRef.id;
+          t.set(receiverTxRef, {
+            userId: String(receiverUid),
+            direction: 'credit',
+            amount,
+            at: now,
+            source: 'cash_deposit',
+            status: 'Completed',
+            processedByCF: true,
+            details: { fromUser: senderUid, depositId: id, toAccount: accountNo },
+          });
+        }
+
+        // Update balances
+        t.set(
+          senderRef,
+          { bank: { ...senderBank, balance: senderBal - amount } },
+          { merge: true }
+        );
+        if (receiverRef) {
+          t.set(
+            receiverRef,
+            { bank: { ...receiverBank, balance: receiverBal + amount, accountNumber: receiverBank.accountNumber || accountNo } },
+            { merge: true }
+          );
+        }
+        if (receiverBURef && receiverBUSnap) {
+          const rbuBal = Number((receiverBUSnap.get('balance') ?? 0)) || 0;
+          t.set(receiverBURef, { balance: rbuBal + amount }, { merge: true });
+        }
+        if (senderBURef && senderBUSnap) {
+          const sbuBal = Number((senderBUSnap.get('balance') ?? 0)) || 0;
+          t.set(senderBURef, { balance: sbuBal - amount }, { merge: true });
+        }
+
+        // Mark deposit verified
+        t.set(depRef, {
+          status: 'Verified',
+          verifiedAt: now,
+          verifiedBy: 'admin',
+          transactionId: receiverTxId || senderTxId,
+        }, { merge: true });
+      });
+      return res.status(200).json({ ok: true, id, senderTxId, receiverTxId });
+    }
+
+    if (action === 'saveBankUser') return await handleSaveBankUser();
+    if (action === 'listDeposits') return await handleListDeposits();
+    if (action === 'depositGet') return await handleDepositGet();
+    if (action === 'verifyDeposit') return await handleVerifyDeposit();
+    if (action === 'depositPdf') return await handleDepositPdf();
+    return res.status(400).json({ error: 'unknown_action' });
   } catch (e) {
     const msg = e?.message || String(e);
-    logger.error('createOrUpdateBankUser failed', { err: msg });
+    logger.error('adminApi failed', { err: msg });
     return res.status(500).json({ error: msg });
   }
 });
@@ -195,6 +425,7 @@ import { logger } from "firebase-functions";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { onRequest } from "firebase-functions/v2/https";
+import PDFDocument from "pdfkit";
 
 // -------------------- Initialize --------------------
 admin.initializeApp();

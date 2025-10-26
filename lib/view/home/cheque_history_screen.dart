@@ -181,14 +181,20 @@ class ChequeHistoryScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                  future: FirebaseFirestore.instance
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: FirebaseFirestore.instance
                       .collection('users')
                       .doc(FirebaseAuth.instance.currentUser?.uid)
-                      .get(),
+                      .snapshots(),
                   builder: (context, userSnap) {
                     final userData = userSnap.data?.data();
-                    final balance = ((userData?['bank'] as Map<String, dynamic>?)?['balance'] as num?)?.toDouble() ?? 0.0;
+                    final bool hasBalance = userData != null && (userData['bank'] is Map) && ((userData['bank'] as Map)['balance'] != null);
+                    final balance = hasBalance
+                        ? (((userData!['bank'] as Map<String, dynamic>)['balance'] as num).toDouble())
+                        : 0.0;
+                    if (userSnap.connectionState == ConnectionState.active) {
+                      debugPrint("[History] balance snapshot: hasBalance=$hasBalance balance=$balance");
+                    }
                     return StreamBuilder<List<Map<String, dynamic>>>(
                       stream: ChequeService.instance.streamUserCheques(),
                       builder: (context, snapshot) {
@@ -349,17 +355,32 @@ class ChequeHistoryScreen extends StatelessWidget {
                           extraDesc: null,
                         );
 
-                        // Compute status dot color based on current user balance vs amount
+                        // Rule: cleared=grey; amount <= 90% of balance => green; 90%-100% => yellow; >100% => red
                         Color? dot;
-                        if (balance <= 0) {
-                          dot = null;
-                        } else if (balance < amount) {
-                          dot = Colors.red;
-                        } else if (balance < amount * 2) {
-                          dot = AppColors.primaryYellow;
+                        if (status == ChequeStatus.cleared) {
+                          dot = Colors.grey;
+                        } else if (!hasBalance) {
+                          dot = null; // avoid wrong color until balance loads
                         } else {
-                          dot = AppColors.primaryGreen;
+                          final reachableBand = balance * 0.9; // 90% of balance
+                          if (amount > balance) {
+                            dot = Colors.red;
+                          } else if (amount >= reachableBand) {
+                            dot = AppColors.primaryYellow;
+                          } else {
+                            dot = AppColors.primaryGreen;
+                          }
                         }
+                        final colorName = dot == null
+                            ? 'none'
+                            : (dot == Colors.red
+                                ? 'red'
+                                : (dot == AppColors.primaryYellow
+                                    ? 'yellow'
+                                    : (dot == AppColors.primaryGreen
+                                        ? 'green'
+                                        : (dot == Colors.grey ? 'grey' : dot.toString()))));
+                        debugPrint("[History] cheque id=${d['id']} amount=$amount balance=$balance dot=$colorName status=$status");
 
                         return ChequeCard(
                           model: model,

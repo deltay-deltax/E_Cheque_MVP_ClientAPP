@@ -1,5 +1,7 @@
 import 'package:echeque_mvp/view_model/quick_action_tile.dart';
 import 'package:echeque_mvp/view/other_Services/send_money_screen.dart';
+import 'package:echeque_mvp/view/invoice/invoice_fill_screen.dart';
+import 'package:echeque_mvp/view/deposit/deposit_fill_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../view_model/quick_actions_view_model.dart';
@@ -55,6 +57,18 @@ class QuickActionsScreen extends StatelessWidget {
                           builder: (_) => const SendMoneyScreen(
                             initialAmount: 500,
                           ),
+                        ),
+                      );
+                    } else if (a.title.trim().toLowerCase().startsWith('invoice')) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NewInvoiceScreen(),
+                        ),
+                      );
+                    } else if (a.title.toLowerCase().contains('deposit') || a.title.toLowerCase().contains('bank')) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const DepositSlipScreen(),
                         ),
                       );
                     }

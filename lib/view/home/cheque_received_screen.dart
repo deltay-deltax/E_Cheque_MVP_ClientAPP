@@ -200,29 +200,92 @@ class ReceivedChequesScreen extends StatelessWidget {
                   final src = docs[i];
                   final issuerUid = src['issuerUid']?.toString();
                   final amount = (src['amount'] as num?)?.toDouble() ?? 0.0;
-                  final issuerBal = (src['issuerBalance'] as num?)?.toDouble() ?? 0.0;
-                  Color? dot;
-                  if (issuerBal <= 0) {
-                    dot = null;
-                  } else if (issuerBal < amount) {
-                    dot = Colors.red;
-                  } else if (issuerBal < amount * 2) {
-                    dot = AppColors.primaryYellow;
-                  } else {
-                    dot = AppColors.primaryGreen;
-                  }
-                  return ChequeCard(
-                    model: m,
-                    showActions: false,
-                    statusDotColor: dot,
-                    onView: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ViewChequeScreen(
-                            chequeId: m.id,
-                            issuerUid: issuerUid,
+                  if (issuerUid == null || issuerUid.isEmpty) {
+                    Color? dot;
+                    final issuerBal =
+                        (src['issuerBalance'] as num?)?.toDouble() ?? 0.0;
+                    if (m.status == ChequeStatus.cleared) {
+                      dot = Colors.grey;
+                    } else {
+                      final band = issuerBal * 0.9; // 90% reachable band
+                      if (amount > issuerBal) {
+                        dot = Colors.red;
+                      } else if (amount >= band) {
+                        dot = AppColors.primaryYellow;
+                      } else {
+                        dot = AppColors.primaryGreen;
+                      }
+                    }
+                    debugPrint("[Received] (no user stream) id=${m.id} amount=$amount issuerBal=$issuerBal dot=${dot == Colors.red ? 'red' : dot == AppColors.primaryYellow ? 'yellow' : dot == AppColors.primaryGreen ? 'green' : dot == Colors.grey ? 'grey' : 'none'}");
+                    return ChequeCard(
+                      model: m,
+                      showActions: false,
+                      statusDotColor: dot,
+                      onView: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => ViewChequeScreen(
+                              chequeId: m.id,
+                              issuerUid: issuerUid,
+                            ),
                           ),
-                        ),
+                        );
+                      },
+                    );
+                  }
+                  return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(issuerUid)
+                        .snapshots(),
+                    builder: (context, userSnap) {
+                      final u = userSnap.data?.data();
+                      final hasIssuerBal = u != null && (u['bank'] is Map) && ((u['bank'] as Map)['balance'] != null);
+                      final issuerBal = hasIssuerBal
+                          ? (((u['bank'] as Map<String, dynamic>)['balance'] as num).toDouble())
+                          : ((src['issuerBalance'] as num?)?.toDouble() ?? 0.0);
+                      if (userSnap.connectionState == ConnectionState.active) {
+                        debugPrint("[Received] balance snapshot: hasIssuerBal=$hasIssuerBal issuerBal=$issuerBal for uid=$issuerUid");
+                      }
+                      Color? dot;
+                      if (m.status == ChequeStatus.cleared) {
+                        dot = Colors.grey;
+                      } else if (!hasIssuerBal) {
+                        dot = null; // avoid wrong color until balance present
+                      } else {
+                        final band = issuerBal * 0.9; // 90% reachable band
+                        if (amount > issuerBal) {
+                          dot = Colors.red;
+                        } else if (amount >= band) {
+                          dot = AppColors.primaryYellow;
+                        } else {
+                          dot = AppColors.primaryGreen;
+                        }
+                      }
+                      final colorName = dot == null
+                          ? 'none'
+                          : (dot == Colors.red
+                              ? 'red'
+                              : (dot == AppColors.primaryYellow
+                                  ? 'yellow'
+                                  : (dot == AppColors.primaryGreen
+                                      ? 'green'
+                                      : (dot == Colors.grey ? 'grey' : dot.toString()))));
+                      debugPrint("[Received] cheque id=${m.id} amount=$amount issuerBal=$issuerBal dot=$colorName status=${m.status}");
+                      return ChequeCard(
+                        model: m,
+                        showActions: false,
+                        statusDotColor: dot,
+                        onView: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ViewChequeScreen(
+                                chequeId: m.id,
+                                issuerUid: issuerUid,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   );

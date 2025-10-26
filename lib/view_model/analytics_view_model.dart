@@ -239,7 +239,10 @@ class AnalyticsViewModel extends ChangeNotifier {
       final c = byId[catId];
       final name = c?.name ?? 'Other';
       final icon = _iconFor(c?.icon ?? 'category', name);
-      final color = _colorFromHex(c?.color ?? '#2563EB');
+      // Ensure 'Other' always uses a distinct color so it doesn't clash with user-defined categories like Travelling
+      final color = name.toLowerCase() == 'other'
+          ? const Color(0xFF9C27B0).withOpacity(0.12) // distinct purple tint
+          : _colorFromHex(c?.color ?? '#2563EB');
       final pct = total <= 0 ? 0 : ((amount / total) * 100).round();
       items.add(
         AnalyticsCategory(
