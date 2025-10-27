@@ -1,4 +1,6 @@
+import 'package:echeque_mvp/view/deposit/deposit_fill_screen.dart';
 import 'package:echeque_mvp/view/home/quick_actions_screen.dart';
+import 'package:echeque_mvp/view/receipt/receipt_fill_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -9,18 +11,31 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/user_service.dart';
 import 'e_cheque_screen.dart';
+import 'package:echeque_mvp/view/other_Services/send_money_screen.dart';
 import 'cheque_history_screen.dart';
 import 'cheque_received_screen.dart';
 import '../../services/cheque_service.dart';
-import '../tracker/transaction_history_screen.dart';
+// import '../tracker/transaction_history_screen.dart';
 import '../tracker/add_expense_screen.dart';
 import '../tracker/analytics_screen.dart';
 import '../tracker/add_category_screen.dart';
 import '../auth/bank_link_guard.dart';
 import '../chat/chat_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _onRefresh() async {
+    // Trigger any background tasks and rebuild UI
+    ChequeService.instance.processDueCheques();
+    setState(() {});
+    await Future.delayed(const Duration(milliseconds: 600));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,427 +110,437 @@ class HomeScreen extends StatelessWidget {
               ),
               body: Stack(
                 children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 8),
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: UserService.instance.streamCurrentUser(),
-                          builder: (context, snap) {
-                            final data = snap.data?.data();
-                            final name =
-                                (data?['fullName'] ??
-                                        data?['displayName'] ??
-                                        '')
-                                    as String?;
-                            final displayName =
-                                (name != null && name.trim().isNotEmpty)
-                                ? name.trim()
-                                : 'User';
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Welcome back,",
-                                  style: TextStyle(
-                                    fontSize: 17,
-                                    color: AppColors.mutedText,
+                  RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    color: AppColors.primaryBlue,
+                    backgroundColor: AppColors.white,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: 8),
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: UserService.instance.streamCurrentUser(),
+                            builder: (context, snap) {
+                              final data = snap.data?.data();
+                              final name =
+                                  (data?['fullName'] ??
+                                          data?['displayName'] ??
+                                          '')
+                                      as String?;
+                              final displayName =
+                                  (name != null && name.trim().isNotEmpty)
+                                  ? name.trim()
+                                  : 'User';
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Welcome back,",
+                                    style: TextStyle(
+                                      fontSize: 17,
+                                      color: AppColors.mutedText,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  displayName,
-                                  style: TextStyle(
-                                    fontSize: 27,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.darkText,
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    displayName,
+                                    style: TextStyle(
+                                      fontSize: 27,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.darkText,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 24),
-                        // Balance card: prefer bankUsers by accountNumber, then users/{uid}.bank.balance, then fallback sum
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: UserService.instance.streamCurrentUser(),
-                          builder: (context, snapshot) {
-                            final data = snapshot.data?.data();
-                            debugPrint(
-                              '[Home] user stream update: hasData=${snapshot.hasData} bankLinked=${data?['bankLinked']}',
-                            );
-                            final bankLinked =
-                                (data?['bankLinked'] as bool?) ?? false;
-                            if (!bankLinked) return const SizedBox.shrink();
-                            final bank =
-                                (data?['bank'] as Map<String, dynamic>?) ?? {};
-                            final acct = bank['accountNumber']?.toString();
-                            final userDocBal = (bank['balance'] as num?)
-                                ?.toDouble();
-                            final bankUsersUid =
-                                (bank['uid'] as String?) ??
-                                FirebaseAuth.instance.currentUser?.uid;
-                            debugPrint(
-                              '[Home] derived acct=$acct userDocBal=$userDocBal bankUsersUid=$bankUsersUid',
-                            );
-                            return StreamBuilder<
-                              DocumentSnapshot<Map<String, dynamic>>
-                            >(
-                              stream: (() {
-                                // Prefer to listen by account number to match admin-seeded bankUsers docs
-                                if (acct != null && acct.isNotEmpty) {
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          // Balance card: prefer bankUsers by accountNumber, then users/{uid}.bank.balance, then fallback sum
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: UserService.instance.streamCurrentUser(),
+                            builder: (context, snapshot) {
+                              final data = snapshot.data?.data();
+                              debugPrint(
+                                '[Home] user stream update: hasData=${snapshot.hasData} bankLinked=${data?['bankLinked']}',
+                              );
+                              final bankLinked =
+                                  (data?['bankLinked'] as bool?) ?? false;
+                              if (!bankLinked) return const SizedBox.shrink();
+                              final bank =
+                                  (data?['bank'] as Map<String, dynamic>?) ??
+                                  {};
+                              final acct = bank['accountNumber']?.toString();
+                              final userDocBal = (bank['balance'] as num?)
+                                  ?.toDouble();
+                              final bankUsersUid =
+                                  (bank['uid'] as String?) ??
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              debugPrint(
+                                '[Home] derived acct=$acct userDocBal=$userDocBal bankUsersUid=$bankUsersUid',
+                              );
+                              return StreamBuilder<
+                                DocumentSnapshot<Map<String, dynamic>>
+                              >(
+                                stream: (() {
+                                  // Prefer to listen by account number to match admin-seeded bankUsers docs
+                                  if (acct != null && acct.isNotEmpty) {
+                                    return FirebaseFirestore.instance
+                                        .collection('bankUsers')
+                                        .where('accountNumber', isEqualTo: acct)
+                                        .limit(1)
+                                        .snapshots()
+                                        .map(
+                                          (qs) => qs.docs.isNotEmpty
+                                              ? qs.docs.first
+                                              : null,
+                                        )
+                                        .where((doc) => doc != null)
+                                        .cast<
+                                          DocumentSnapshot<Map<String, dynamic>>
+                                        >();
+                                  }
+                                  // Fallback to doc by uid if no account number available
+                                  if (bankUsersUid == null) {
+                                    return const Stream<
+                                      DocumentSnapshot<Map<String, dynamic>>
+                                    >.empty();
+                                  }
                                   return FirebaseFirestore.instance
                                       .collection('bankUsers')
-                                      .where('accountNumber', isEqualTo: acct)
-                                      .limit(1)
-                                      .snapshots()
-                                      .map(
-                                        (qs) => qs.docs.isNotEmpty
-                                            ? qs.docs.first
-                                            : null,
-                                      )
-                                      .where((doc) => doc != null)
-                                      .cast<
-                                        DocumentSnapshot<Map<String, dynamic>>
-                                      >();
-                                }
-                                // Fallback to doc by uid if no account number available
-                                if (bankUsersUid == null) {
-                                  return const Stream<
-                                    DocumentSnapshot<Map<String, dynamic>>
-                                  >.empty();
-                                }
-                                return FirebaseFirestore.instance
-                                    .collection('bankUsers')
-                                    .doc(bankUsersUid)
-                                    .snapshots();
-                              })(),
-                              builder: (context, buSnap) {
-                                final buBal =
-                                    (buSnap.data?.data()?['balance'] as num?)
-                                        ?.toDouble();
-                                debugPrint(
-                                  '[Home] bankUsers snapshot: exists=${buSnap.data?.exists} byAcct=${acct != null && acct.isNotEmpty} buBal=$buBal',
-                                );
-                                final preferredBal = buBal ?? userDocBal;
-                                final preferredBalStr = preferredBal != null
-                                    ? '₹${preferredBal.toStringAsFixed(2)}'
-                                    : null;
-                                return StreamBuilder<
-                                  QuerySnapshot<Map<String, dynamic>>
-                                >(
-                                  stream: (() {
-                                    final uid =
-                                        FirebaseAuth.instance.currentUser?.uid;
-                                    if (uid == null) {
-                                      return const Stream<
-                                        QuerySnapshot<Map<String, dynamic>>
-                                      >.empty();
-                                    }
-                                    return FirebaseFirestore.instance
-                                        .collection('transactions')
-                                        .where('userId', isEqualTo: uid)
-                                        .orderBy('at', descending: true)
-                                        .limit(500)
-                                        .snapshots();
-                                  })(),
-                                  builder: (context, txSnap) {
-                                    String? liveBalanceStr;
-                                    final docs = txSnap.data?.docs ?? const [];
-                                    if (txSnap.hasError) {
+                                      .doc(bankUsersUid)
+                                      .snapshots();
+                                })(),
+                                builder: (context, buSnap) {
+                                  final buBal =
+                                      (buSnap.data?.data()?['balance'] as num?)
+                                          ?.toDouble();
+                                  debugPrint(
+                                    '[Home] bankUsers snapshot: exists=${buSnap.data?.exists} byAcct=${acct != null && acct.isNotEmpty} buBal=$buBal',
+                                  );
+                                  final preferredBal = buBal ?? userDocBal;
+                                  final preferredBalStr = preferredBal != null
+                                      ? '₹${preferredBal.toStringAsFixed(2)}'
+                                      : null;
+                                  return StreamBuilder<
+                                    QuerySnapshot<Map<String, dynamic>>
+                                  >(
+                                    stream: (() {
+                                      final uid = FirebaseAuth
+                                          .instance
+                                          .currentUser
+                                          ?.uid;
+                                      if (uid == null) {
+                                        return const Stream<
+                                          QuerySnapshot<Map<String, dynamic>>
+                                        >.empty();
+                                      }
+                                      return FirebaseFirestore.instance
+                                          .collection('transactions')
+                                          .where('userId', isEqualTo: uid)
+                                          .orderBy('at', descending: true)
+                                          .limit(500)
+                                          .snapshots();
+                                    })(),
+                                    builder: (context, txSnap) {
+                                      String? liveBalanceStr;
+                                      final docs =
+                                          txSnap.data?.docs ?? const [];
+                                      if (txSnap.hasError) {
+                                        debugPrint(
+                                          '[Home] tx stream error: ${txSnap.error}',
+                                        );
+                                      }
                                       debugPrint(
-                                        '[Home] tx stream error: ${txSnap.error}',
+                                        '[Home] tx stream update: count=${docs.length} state=${txSnap.connectionState}',
                                       );
-                                    }
-                                    debugPrint(
-                                      '[Home] tx stream update: count=${docs.length} state=${txSnap.connectionState}',
-                                    );
-                                    if (docs.isNotEmpty) {
-                                      double sum = 0;
-                                      double pendingImpact = 0;
-                                      for (final d in docs) {
-                                        final dd = d.data();
-                                        final dir =
-                                            (dd['direction'] as String?) ??
-                                            'debit';
-                                        final amt =
-                                            ((dd['amount'] as num?) ?? 0)
-                                                .toDouble();
-                                        final status =
-                                            (dd['status'] as String?) ??
-                                            'Completed';
-                                        final source =
-                                            (dd['source'] as String?) ?? '';
-                                        if (status == 'Completed') {
-                                          sum += dir == 'credit' ? amt : -amt;
-                                        } else if (status == 'Pending' &&
-                                            source != 'cheque') {
-                                          // Apply optimistic pending impact for non-cheque tx (e.g., mobile send)
-                                          pendingImpact += dir == 'credit'
-                                              ? amt
-                                              : -amt;
+                                      if (docs.isNotEmpty) {
+                                        double sum = 0;
+                                        double pendingImpact = 0;
+                                        for (final d in docs) {
+                                          final dd = d.data();
+                                          final dir =
+                                              (dd['direction'] as String?) ??
+                                              'debit';
+                                          final amt =
+                                              ((dd['amount'] as num?) ?? 0)
+                                                  .toDouble();
+                                          final status =
+                                              (dd['status'] as String?) ??
+                                              'Completed';
+                                          final source =
+                                              (dd['source'] as String?) ?? '';
+                                          if (status == 'Completed') {
+                                            sum += dir == 'credit' ? amt : -amt;
+                                          } else if (status == 'Pending' &&
+                                              source != 'cheque') {
+                                            // Apply optimistic pending impact for non-cheque tx (e.g., mobile send)
+                                            pendingImpact += dir == 'credit'
+                                                ? amt
+                                                : -amt;
+                                          }
+                                        }
+                                        liveBalanceStr =
+                                            '₹${sum.toStringAsFixed(2)}';
+                                        debugPrint(
+                                          '[Home] computed live balance from tx = $liveBalanceStr',
+                                        );
+                                        if (preferredBal != null) {
+                                          final eff =
+                                              preferredBal + pendingImpact;
+                                          debugPrint(
+                                            '[Home] pendingImpact(non-cheque)=$pendingImpact effectiveDisplayed=$eff',
+                                          );
+                                          final effStr =
+                                              '₹${eff.toStringAsFixed(2)}';
+                                          return _BalanceCard(
+                                            vm: vm,
+                                            overrideBalance: effStr,
+                                            overrideAccountNumber: acct,
+                                          );
                                         }
                                       }
-                                      liveBalanceStr =
-                                          '₹${sum.toStringAsFixed(2)}';
                                       debugPrint(
-                                        '[Home] computed live balance from tx = $liveBalanceStr',
+                                        '[Home] preferredBalStr=$preferredBalStr using=${preferredBalStr ?? liveBalanceStr}',
                                       );
-                                      if (preferredBal != null) {
-                                        final eff =
-                                            preferredBal + pendingImpact;
-                                        debugPrint(
-                                          '[Home] pendingImpact(non-cheque)=$pendingImpact effectiveDisplayed=$eff',
-                                        );
-                                        final effStr =
-                                            '₹${eff.toStringAsFixed(2)}';
-                                        return _BalanceCard(
-                                          vm: vm,
-                                          overrideBalance: effStr,
-                                          overrideAccountNumber: acct,
-                                        );
-                                      }
-                                    }
-                                    debugPrint(
-                                      '[Home] preferredBalStr=$preferredBalStr using=${preferredBalStr ?? liveBalanceStr}',
-                                    );
-                                    return _BalanceCard(
-                                      vm: vm,
-                                      overrideBalance:
-                                          preferredBalStr ?? liveBalanceStr,
-                                      overrideAccountNumber: acct,
-                                    );
-                                  },
+                                      return _BalanceCard(
+                                        vm: vm,
+                                        overrideBalance:
+                                            preferredBalStr ?? liveBalanceStr,
+                                        overrideAccountNumber: acct,
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Hide link card once bank is linked and PIN set
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: UserService.instance.streamCurrentUser(),
+                            builder: (context, snapshot) {
+                              final data = snapshot.data?.data();
+                              final bankLinked =
+                                  (data?['bankLinked'] as bool?) ?? false;
+                              final pinSet = (() {
+                                final legacy =
+                                    (data?['transactionPinHash'] as String?) !=
+                                    null;
+                                final obj =
+                                    data?['transactionPin']
+                                        as Map<String, dynamic>?;
+                                final v2 = (obj?['hash'] as String?) != null;
+                                return legacy || v2;
+                              })();
+                              if (bankLinked && pinSet) {
+                                return const SizedBox.shrink();
+                              }
+                              return const _LinkCard();
+                            },
+                          ),
+                          const SizedBox(height: 22),
+                          Text(
+                            "Quick Actions",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _QuickActionsGrid(vm: vm),
+                          const SizedBox(height: 15),
+                          Text(
+                            "This Month",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Builder(
+                            builder: (context) {
+                              final now = DateTime.now();
+                              final start = DateTime(now.year, now.month, 1);
+                              final end = DateTime(now.year, now.month + 1, 1);
+                              return StreamBuilder<
+                                QuerySnapshot<Map<String, dynamic>>
+                              >(
+                                stream: (() {
+                                  final uid =
+                                      FirebaseAuth.instance.currentUser?.uid;
+                                  if (uid == null) {
+                                    return const Stream<
+                                      QuerySnapshot<Map<String, dynamic>>
+                                    >.empty();
+                                  }
+                                  return FirebaseFirestore.instance
+                                      .collection('transactions')
+                                      .where('userId', isEqualTo: uid)
+                                      .where(
+                                        'at',
+                                        isGreaterThanOrEqualTo:
+                                            Timestamp.fromDate(start),
+                                      )
+                                      .where(
+                                        'at',
+                                        isLessThan: Timestamp.fromDate(end),
+                                      )
+                                      .snapshots();
+                                })(),
+                                builder: (context, snap) {
+                                  double monthIncome = 0;
+                                  double monthExpense = 0;
+                                  final docs = snap.data?.docs ?? const [];
+                                  for (final d in docs) {
+                                    final data = d.data();
+                                    final dir =
+                                        (data['direction'] as String?) ??
+                                        'debit';
+                                    final amt = ((data['amount'] as num?) ?? 0)
+                                        .toDouble();
+                                    if (dir == 'credit')
+                                      monthIncome += amt;
+                                    else
+                                      monthExpense += amt;
+                                  }
+                                  final incomeCard = SummaryCard(
+                                    'Income',
+                                    '₹${monthIncome.toStringAsFixed(2)}',
+                                    Icons.arrow_upward,
+                                    const Color(0xFF10B981),
+                                    '',
+                                  );
+                                  final expenseCard = SummaryCard(
+                                    'Expenses',
+                                    '₹${monthExpense.toStringAsFixed(2)}',
+                                    Icons.arrow_downward,
+                                    Colors.red,
+                                    '',
+                                  );
+                                  return Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Expanded(
+                                        child: _InfoCard(data: incomeCard),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: _InfoCard(data: expenseCard),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: _InfoCard(data: vm.summaryCards[2]),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _InfoCard(data: vm.summaryCards[3]),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const SizedBox(height: 18),
+                          Text(
+                            "Recent Transactions",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: (() {
+                              final uid =
+                                  FirebaseAuth.instance.currentUser?.uid;
+                              if (uid == null) {
+                                return Stream<
+                                  QuerySnapshot<Map<String, dynamic>>
+                                >.empty();
+                              }
+                              return FirebaseFirestore.instance
+                                  .collection('transactions')
+                                  .where('userId', isEqualTo: uid)
+                                  .orderBy('at', descending: true)
+                                  .limit(3)
+                                  .snapshots();
+                            })(),
+                            builder: (context, snap) {
+                              if (snap.hasError) {
+                                return const Text(
+                                  'Unable to load recent transactions. Please ensure Firestore index exists for userId+at.',
+                                  style: TextStyle(color: Colors.redAccent),
                                 );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        // Hide link card once bank is linked and PIN set
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: UserService.instance.streamCurrentUser(),
-                          builder: (context, snapshot) {
-                            final data = snapshot.data?.data();
-                            final bankLinked =
-                                (data?['bankLinked'] as bool?) ?? false;
-                            final pinSet = (() {
-                              final legacy =
-                                  (data?['transactionPinHash'] as String?) !=
-                                  null;
-                              final obj =
-                                  data?['transactionPin']
-                                      as Map<String, dynamic>?;
-                              final v2 = (obj?['hash'] as String?) != null;
-                              return legacy || v2;
-                            })();
-                            if (bankLinked && pinSet) {
-                              return const SizedBox.shrink();
-                            }
-                            return const _LinkCard();
-                          },
-                        ),
-                        const SizedBox(height: 22),
-                        Text(
-                          "Quick Actions",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _QuickActionsGrid(vm: vm),
-                        const SizedBox(height: 15),
-                        Text(
-                          "This Month",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Builder(
-                          builder: (context) {
-                            final now = DateTime.now();
-                            final start = DateTime(now.year, now.month, 1);
-                            final end = DateTime(now.year, now.month + 1, 1);
-                            return StreamBuilder<
-                              QuerySnapshot<Map<String, dynamic>>
-                            >(
-                              stream: (() {
-                                final uid =
-                                    FirebaseAuth.instance.currentUser?.uid;
-                                if (uid == null) {
-                                  return const Stream<
-                                    QuerySnapshot<Map<String, dynamic>>
-                                  >.empty();
-                                }
-                                return FirebaseFirestore.instance
-                                    .collection('transactions')
-                                    .where('userId', isEqualTo: uid)
-                                    .where(
-                                      'at',
-                                      isGreaterThanOrEqualTo:
-                                          Timestamp.fromDate(start),
-                                    )
-                                    .where(
-                                      'at',
-                                      isLessThan: Timestamp.fromDate(end),
-                                    )
-                                    .snapshots();
-                              })(),
-                              builder: (context, snap) {
-                                double monthIncome = 0;
-                                double monthExpense = 0;
-                                final docs = snap.data?.docs ?? const [];
-                                for (final d in docs) {
+                              }
+                              if (snap.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Center(
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                );
+                              }
+                              final docs = snap.data?.docs ?? const [];
+                              if (docs.isEmpty) {
+                                return const Text(
+                                  'No recent transactions',
+                                  style: TextStyle(color: Colors.grey),
+                                );
+                              }
+                              return Column(
+                                children: docs.map((d) {
                                   final data = d.data();
                                   final dir =
                                       (data['direction'] as String?) ?? 'debit';
-                                  final amt = ((data['amount'] as num?) ?? 0)
+                                  final incoming = dir == 'credit';
+                                  final amount = ((data['amount'] as num?) ?? 0)
                                       .toDouble();
-                                  if (dir == 'credit')
-                                    monthIncome += amt;
-                                  else
-                                    monthExpense += amt;
-                                }
-                                final incomeCard = SummaryCard(
-                                  'Income',
-                                  '₹${monthIncome.toStringAsFixed(2)}',
-                                  Icons.arrow_upward,
-                                  const Color(0xFF10B981),
-                                  '',
-                                );
-                                final expenseCard = SummaryCard(
-                                  'Expenses',
-                                  '₹${monthExpense.toStringAsFixed(2)}',
-                                  Icons.arrow_downward,
-                                  Colors.red,
-                                  '',
-                                );
-                                return Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: _InfoCard(data: incomeCard),
+                                  final note =
+                                      (data['note'] as String?) ??
+                                      (data['source'] as String? ??
+                                          'Transaction');
+                                  final atTs = data['at'];
+                                  String time = '';
+                                  if (atTs is Timestamp) {
+                                    final dt = atTs.toDate();
+                                    time =
+                                        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+                                  }
+                                  return _TransactionCard(
+                                    data: TransactionCardData(
+                                      note,
+                                      incoming ? 'Income' : 'Payment',
+                                      time.isEmpty ? '—' : time,
+                                      (incoming ? '+₹' : '-₹') +
+                                          amount.toStringAsFixed(2),
+                                      incoming ? 'Income' : 'Expense',
+                                      incoming
+                                          ? Icons.arrow_downward
+                                          : Icons.arrow_upward,
+                                      incoming
+                                          ? const Color(0xFF10B981)
+                                          : Colors.red,
                                     ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: _InfoCard(data: expenseCard),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: _InfoCard(data: vm.summaryCards[2]),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _InfoCard(data: vm.summaryCards[3]),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        const SizedBox(height: 18),
-                        Text(
-                          "Recent Transactions",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.darkText,
+                                  );
+                                }).toList(),
+                              );
+                            },
                           ),
-                        ),
-                        const SizedBox(height: 9),
-                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: (() {
-                            final uid = FirebaseAuth.instance.currentUser?.uid;
-                            if (uid == null) {
-                              return Stream<
-                                QuerySnapshot<Map<String, dynamic>>
-                              >.empty();
-                            }
-                            return FirebaseFirestore.instance
-                                .collection('transactions')
-                                .where('userId', isEqualTo: uid)
-                                .orderBy('at', descending: true)
-                                .limit(3)
-                                .snapshots();
-                          })(),
-                          builder: (context, snap) {
-                            if (snap.hasError) {
-                              return const Text(
-                                'Unable to load recent transactions. Please ensure Firestore index exists for userId+at.',
-                                style: TextStyle(color: Colors.redAccent),
-                              );
-                            }
-                            if (snap.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              );
-                            }
-                            final docs = snap.data?.docs ?? const [];
-                            if (docs.isEmpty) {
-                              return const Text(
-                                'No recent transactions',
-                                style: TextStyle(color: Colors.grey),
-                              );
-                            }
-                            return Column(
-                              children: docs.map((d) {
-                                final data = d.data();
-                                final dir =
-                                    (data['direction'] as String?) ?? 'debit';
-                                final incoming = dir == 'credit';
-                                final amount = ((data['amount'] as num?) ?? 0)
-                                    .toDouble();
-                                final note =
-                                    (data['note'] as String?) ??
-                                    (data['source'] as String? ??
-                                        'Transaction');
-                                final atTs = data['at'];
-                                String time = '';
-                                if (atTs is Timestamp) {
-                                  final dt = atTs.toDate();
-                                  time =
-                                      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-                                }
-                                return _TransactionCard(
-                                  data: TransactionCardData(
-                                    note,
-                                    incoming ? 'Income' : 'Payment',
-                                    time.isEmpty ? '—' : time,
-                                    (incoming ? '+₹' : '-₹') +
-                                        amount.toStringAsFixed(2),
-                                    incoming ? 'Income' : 'Expense',
-                                    incoming
-                                        ? Icons.arrow_downward
-                                        : Icons.arrow_upward,
-                                    incoming
-                                        ? const Color(0xFF10B981)
-                                        : Colors.red,
-                                  ),
-                                );
-                              }).toList(),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 100),
-                      ],
+                          const SizedBox(height: 100),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -976,7 +1001,28 @@ class _QuickActionsGrid extends StatelessWidget {
                   case 'Transactions':
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => const TransactionsScreen(),
+                        builder: (_) => const SendMoneyScreen(initialAmount: 0),
+                      ),
+                    );
+                    break;
+                  case 'Send Money':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SendMoneyScreen(initialAmount: 0),
+                      ),
+                    );
+                    break;
+                  case 'Deposit':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const DepositSlipScreen(),
+                      ),
+                    );
+                    break;
+                  case 'Receipt':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ReceiptSlipScreen(),
                       ),
                     );
                     break;
@@ -1026,7 +1072,7 @@ class _ActionItem extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(18), // <-- FIXED: Added comma
           boxShadow: [
             BoxShadow(
               blurRadius: 10,

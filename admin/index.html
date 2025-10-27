@@ -4,6 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bank Admin</title>
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
     <style>
       body {
         font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -28,8 +32,8 @@
       }
       .grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
+        grid-template-columns: 1fr 1fr 1fr; /* Changed to 3 columns */
+        gap: 20px; /* Increased gap */
       }
       .grid-1 {
         display: grid;
@@ -85,13 +89,85 @@
       .err {
         color: #991b1b;
       }
+
+      /* 2. UPDATED: Card styles */
       .note {
-        background: #f9fafb;
-        border: 1px dashed #e5e7eb;
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 13px;
-        color: #374151;
+        /* Removed dashed border and plain bg */
+        border-radius: 12px;
+        padding: 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        /* Added a soft shadow */
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+        /* Added a transition for the hover effect */
+        transition: all 0.2s ease-out;
+        border: 1px solid #e5e7eb; /* Cleaner solid border */
+      }
+
+      /* 3. ADDED: Hover effect */
+      a:hover .note {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      }
+
+      /* 4. ADDED: Icon and Text styles */
+      .note .card-icon {
+        font-size: 30px;
+        padding: 14px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.05); /* Default */
+        color: #333; /* Default */
+      }
+      .note .card-title {
+        font-weight: 700;
+        margin-bottom: 4px;
+        font-size: 17px;
+      }
+      .note .card-description {
+        color: #555;
+        font-size: 14px;
+      }
+
+      /* 5. ADDED: Color variants for each card */
+
+      /* Blue Card (Add User) */
+      .note-blue {
+        background-color: #eff6ff; /* Light blue */
+        border-color: #dbeafe;
+      }
+      .note-blue .card-icon {
+        background-color: #dbeafe; /* Medium blue */
+        color: #2563eb; /* Dark blue */
+      }
+      .note-blue .card-title {
+        color: #1e40af; /* Darker blue */
+      }
+
+      /* Green Card (Deposits) */
+      .note-green {
+        background-color: #f0fdf4; /* Light green */
+        border-color: #dcfce7;
+      }
+      .note-green .card-icon {
+        background-color: #dcfce7; /* Medium green */
+        color: #16a34a; /* Dark green */
+      }
+      .note-green .card-title {
+        color: #15803d; /* Darker green */
+      }
+
+      /* Orange Card (Receipts) */
+      .note-orange {
+        background-color: #fffbeb; /* Light orange */
+        border-color: #fef3c7;
+      }
+      .note-orange .card-icon {
+        background-color: #fef3c7; /* Medium orange */
+        color: #d97706; /* Dark orange */
+      }
+      .note-orange .card-title {
+        color: #b45309; /* Darker orange */
       }
     </style>
     <script src="./config.js"></script>
@@ -99,277 +175,51 @@
   <body>
     <div class="container">
       <h1>Bank Admin</h1>
-      <p class="sub">Manage bank users and verify customer deposit slips.</p>
+      <p class="sub">Choose a module to continue</p>
 
-      <div class="note">
-        <div><strong>Instructions</strong></div>
-        <div>
-          1) Copy <code>config.example.js</code> to <code>config.js</code> and
-          fill your Function URL and Admin Key.
-        </div>
-        <div>2) Fill the form and click Save. UID will be auto-generated.</div>
-      </div>
-
-      <h2 style="margin-top: 16px">Add / Update User</h2>
-      <form id="f" class="grid" onsubmit="return false;">
-        <div class="row">
-          <label>Full Name</label>
-          <input id="fullName" required />
-        </div>
-        <div class="row">
-          <label>Email</label>
-          <input id="email" type="email" required />
-        </div>
-        <div class="row">
-          <label>Phone</label>
-          <input id="phone" required />
-        </div>
-        <div class="row">
-          <label>Account Number</label>
-          <input id="accountNumber" required />
-        </div>
-        <div class="row">
-          <label>Account Type</label>
-          <input id="accountType" value="savings" required />
-        </div>
-        <div class="row">
-          <label>Bank Name</label>
-          <input id="bankName" required />
-        </div>
-        <div class="row">
-          <label>Branch</label>
-          <input id="branch" required />
-        </div>
-        <div class="row">
-          <label>IFSC</label>
-          <input id="ifsc" required />
-        </div>
-        <div class="row">
-          <label>Balance</label>
-          <input id="balance" type="number" step="0.01" required />
-        </div>
-      </form>
-
-      <div class="actions">
-        <button id="saveBtn">Save bank user</button>
-        <button class="secondary" id="resetBtn" type="button">Reset</button>
-      </div>
-      <div id="msg" class="msg"></div>
-
-      <hr style="margin: 28px 0; border: none; border-top: 1px solid #eee" />
-
-      <h2>Verify Deposits</h2>
-      <div class="actions">
-        <button id="refreshDepositsBtn" type="button">Refresh Deposits</button>
-      </div>
-      <div id="depMsg" class="msg"></div>
-      <div id="deposits" style="margin-top: 12px; overflow: auto">
-        <table id="depTable" style="width: 100%; border-collapse: collapse">
-          <thead>
-            <tr style="text-align: left; border-bottom: 1px solid #e5e7eb">
-              <th style="padding: 8px">Date</th>
-              <th style="padding: 8px">Slip No</th>
-              <th style="padding: 8px">Account No</th>
-              <th style="padding: 8px">Amount (INR)</th>
-              <th style="padding: 8px">Status</th>
-              <th style="padding: 8px">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="depBody"></tbody>
-        </table>
+      <div class="grid">
+        <a href="./add_user.html" style="text-decoration: none; color: inherit">
+          <div class="note note-blue">
+            <span class="material-symbols-outlined card-icon">
+              person_add
+            </span>
+            <div>
+              <div class="card-title">Add User</div>
+              <div class="card-description">Add or update a bank user</div>
+            </div>
+          </div>
+        </a>
+        <a
+          href="./verify_deposits.html"
+          style="text-decoration: none; color: inherit"
+        >
+          <div class="note note-green">
+            <span class="material-symbols-outlined card-icon">
+              account_balance
+            </span>
+            <div>
+              <div class="card-title">Verify Deposits</div>
+              <div class="card-description">
+                Review and verify cash deposit slips
+              </div>
+            </div>
+          </div>
+        </a>
+        <a
+          href="./verify_receipts.html"
+          style="text-decoration: none; color: inherit"
+        >
+          <div class="note note-orange">
+            <span class="material-symbols-outlined card-icon"> receipt </span>
+            <div>
+              <div class="card-title">Verify Cash Receipts</div>
+              <div class="card-description">
+                Review self cash receipts and cashout
+              </div>
+            </div>
+          </div>
+        </a>
       </div>
     </div>
-
-    <script>
-      (function () {
-        function el(id) {
-          return document.getElementById(id);
-        }
-        const msg = el("msg");
-        const depMsg = el("depMsg");
-        function setMsg(text, ok) {
-          msg.textContent = text;
-          msg.className = "msg " + (ok ? "ok" : "err");
-        }
-        function clearMsg() {
-          msg.textContent = "";
-          msg.className = "msg";
-        }
-        function setDepMsg(text, ok) {
-          depMsg.textContent = text;
-          depMsg.className = "msg " + (ok ? "ok" : "err");
-        }
-        function clearDepMsg() {
-          depMsg.textContent = "";
-          depMsg.className = "msg";
-        }
-        function reset() {
-          document.getElementById("f").reset();
-          clearMsg();
-        }
-        el("resetBtn").addEventListener("click", reset);
-
-        async function save() {
-          clearMsg();
-          const C = window.ADMIN_CONFIG || {};
-          if (!C.FUNCTION_URL || !C.ADMIN_KEY) {
-            setMsg("Missing config.js FUNCTION_URL/ADMIN_KEY", false);
-            return;
-          }
-          const payload = {
-            action: "saveBankUser",
-            fullName: el("fullName").value.trim(),
-            email: el("email").value.trim(),
-            phone: el("phone").value.trim(),
-            accountNumber: el("accountNumber").value.trim(),
-            accountType: el("accountType").value.trim(),
-            bankName: el("bankName").value.trim(),
-            branch: el("branch").value.trim(),
-            ifsc: el("ifsc").value.trim(),
-            balance: Number(el("balance").value),
-          };
-          try {
-            const res = await fetch(C.FUNCTION_URL, {
-              method: "POST",
-              headers: { "Content-Type": "text/plain" },
-              body: JSON.stringify({ ...payload, adminKey: C.ADMIN_KEY }),
-            });
-            const j = await res.json();
-            if (!res.ok) {
-              throw new Error(j.error || "HTTP " + res.status);
-            }
-            setMsg(
-              "Saved bankUsers/" + (j.id || j.uid || payload.uid || ""),
-              true
-            );
-          } catch (e) {
-            setMsg("Error: " + (e.message || e), false);
-          }
-        }
-        el("saveBtn").addEventListener("click", save);
-
-        // Deposits listing and actions (requires Cloud Function support)
-        function renderDeposits(rows) {
-          const tbody = el("depBody");
-          tbody.innerHTML = "";
-          if (!rows || rows.length === 0) {
-            const tr = document.createElement("tr");
-            const td = document.createElement("td");
-            td.colSpan = 6;
-            td.style.padding = "8px";
-            td.textContent = "No deposits";
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-            return;
-          }
-          rows.forEach((d) => {
-            const tr = document.createElement("tr");
-            tr.style.borderBottom = "1px solid #f0f0f0";
-            function td(text) {
-              const c = document.createElement("td");
-              c.style.padding = "8px";
-              c.textContent = text;
-              return c;
-            }
-            const dateStr = (d.slipDate || "").toString().split("T")[0] || "";
-            tr.appendChild(td(dateStr));
-            tr.appendChild(td(d.slipNo || d.id || ""));
-            tr.appendChild(td(d.accountNo || ""));
-            tr.appendChild(
-              td(String(d.depositAmount || d.cashBreakdownTotal || "0"))
-            );
-            tr.appendChild(td(d.status || "Pending"));
-            const actions = document.createElement("td");
-            actions.style.padding = "8px";
-            const viewBtn = document.createElement("button");
-            viewBtn.className = "secondary";
-            viewBtn.textContent = "View Bank Copy";
-            viewBtn.onclick = async () => {
-              try {
-                clearDepMsg();
-                const C = window.ADMIN_CONFIG || {};
-                const res = await fetch(C.FUNCTION_URL, {
-                  method: "POST",
-                  headers: { "Content-Type": "text/plain" },
-                  body: JSON.stringify({
-                    action: "depositPdf",
-                    depositId: d.id,
-                    bankCopy: true,
-                    adminKey: C.ADMIN_KEY,
-                  }),
-                });
-                const j = await res.json();
-                if (!res.ok) throw new Error(j.error || "HTTP " + res.status);
-                // Expect j.pdf (base64)
-                const b64 = j.pdf;
-                if (b64) {
-                  const blob = fetch(`data:application/pdf;base64,${b64}`).then(
-                    (r) => r.blob()
-                  );
-                  blob.then((b) => {
-                    const url = URL.createObjectURL(b);
-                    window.open(url, "_blank");
-                  });
-                } else {
-                  setDepMsg("No PDF returned", false);
-                }
-              } catch (e) {
-                setDepMsg("Error: " + (e.message || e), false);
-              }
-            };
-            const verifyBtn = document.createElement("button");
-            verifyBtn.textContent = "Verify & Post";
-            verifyBtn.style.marginLeft = "8px";
-            verifyBtn.onclick = async () => {
-              try {
-                clearDepMsg();
-                const C = window.ADMIN_CONFIG || {};
-                const res = await fetch(C.FUNCTION_URL, {
-                  method: "POST",
-                  headers: { "Content-Type": "text/plain" },
-                  body: JSON.stringify({
-                    action: "verifyDeposit",
-                    depositId: d.id,
-                    adminKey: C.ADMIN_KEY,
-                  }),
-                });
-                const j = await res.json();
-                if (!res.ok) throw new Error(j.error || "HTTP " + res.status);
-                setDepMsg("Deposit verified and posted", true);
-                await refreshDeposits();
-              } catch (e) {
-                setDepMsg("Error: " + (e.message || e), false);
-              }
-            };
-            actions.appendChild(viewBtn);
-            actions.appendChild(verifyBtn);
-            tr.appendChild(actions);
-            tbody.appendChild(tr);
-          });
-        }
-
-        async function refreshDeposits() {
-          clearDepMsg();
-          const C = window.ADMIN_CONFIG || {};
-          if (!C.FUNCTION_URL || !C.ADMIN_KEY) {
-            setDepMsg("Missing config.js FUNCTION_URL/ADMIN_KEY", false);
-            return;
-          }
-          try {
-            const res = await fetch(C.FUNCTION_URL, {
-              method: "POST",
-              headers: { "Content-Type": "text/plain" },
-              body: JSON.stringify({ action: "listDeposits", limit: 100, adminKey: C.ADMIN_KEY }),
-            });
-            const j = await res.json();
-            if (!res.ok) throw new Error(j.error || "HTTP " + res.status);
-            renderDeposits(j.items || []);
-          } catch (e) {
-            setDepMsg("Error: " + (e.message || e), false);
-          }
-        }
-        el("refreshDepositsBtn").addEventListener("click", refreshDeposits);
-      })();
-    </script>
   </body>
 </html>

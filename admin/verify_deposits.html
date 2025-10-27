@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verify Deposits</title>
+  <script src="./config.js"></script>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f7f7fb;margin:0}
+    .container{max-width:980px;margin:40px auto;background:#fff;padding:24px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.05)}
+    .actions{margin-top:16px;display:flex;gap:12px}
+    button{background:#2563eb;color:#fff;border:0;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:600}
+    button.disabled{background:#e5e7eb !important;color:#6b7280 !important;cursor:not-allowed}
+    button.secondary{background:#f3f4f6;color:#111827}
+    .msg{margin-top:14px;font-size:14px}.ok{color:#065f46}.err{color:#991b1b}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:8px;text-align:left;border-bottom:1px solid #e5e7eb}
+    a.back{display:inline-block;margin-bottom:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a class="back" href="./index.html">← Back</a>
+    <h1>Verify Deposits</h1>
+    <div class="actions">
+      <button id="refresh">Refresh Deposits</button>
+    </div>
+    <div id="m" class="msg"></div>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Slip No</th><th>Account No</th><th>Amount (INR)</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <script>
+    (function(){
+      function el(id){return document.getElementById(id)}
+      const M=el('m'); function setMsg(t,ok){M.textContent=t; M.className='msg '+(ok?'ok':'err')} function clear(){setMsg('',true)}
+      function render(items){
+        const tb=el('rows'); tb.innerHTML='';
+        if(!items||!items.length){ const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=6; td.textContent='No deposits'; tr.appendChild(td); tb.appendChild(tr); return; }
+        items.forEach(d=>{
+          const tr=document.createElement('tr');
+          function td(t){ const c=document.createElement('td'); c.textContent=t; return c; }
+          const dateStr=(d.slipDate||'').toString().split('T')[0]||'';
+          tr.appendChild(td(dateStr)); tr.appendChild(td(d.slipNo||d.id||'')); tr.appendChild(td(d.accountNo||'')); tr.appendChild(td(String(d.depositAmount||d.cashBreakdownTotal||'0'))); tr.appendChild(td(d.status||'Pending'));
+          const actions=document.createElement('td');
+          const view=document.createElement('button'); view.className='secondary'; view.textContent='View Bank Copy'; view.onclick=()=>openPdf(d.id);
+          const verify=document.createElement('button'); verify.style.marginLeft='8px'; verify.textContent='Verify & Post';
+          verify.onclick=async ()=>{
+            verify.disabled=true; verify.classList.add('disabled');
+            const ok = await verifyDeposit(d.id);
+            if(ok){ verify.textContent='Verified'; }
+            else { verify.disabled=false; verify.classList.remove('disabled'); }
+          };
+          actions.appendChild(view); actions.appendChild(verify); tr.appendChild(actions);
+          tb.appendChild(tr);
+        });
+      }
+      async function openPdf(id){ try{ clear(); const C=window.ADMIN_CONFIG||{}; const res=await fetch(C.FUNCTION_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'depositPdf',depositId:id,bankCopy:true,adminKey:C.ADMIN_KEY})}); const j=await res.json(); if(!res.ok) throw new Error(j.error||('HTTP '+res.status)); const b64=j.pdf; if(b64){ const blob=await fetch(`data:application/pdf;base64,${b64}`).then(r=>r.blob()); const url=URL.createObjectURL(blob); window.open(url,'_blank'); } else setMsg('No PDF returned', false);}catch(e){ setMsg('Error: '+(e.message||e),false);} }
+      async function verifyDeposit(id){ try{ clear(); const C=window.ADMIN_CONFIG||{}; const res=await fetch(C.FUNCTION_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'verifyDeposit',depositId:id,adminKey:C.ADMIN_KEY})}); const j=await res.json(); if(!res.ok) throw new Error(j.error||('HTTP '+res.status)); setMsg('Deposit verified and posted', true); return true; }catch(e){ setMsg('Error: '+(e.message||e), false); return false; } }
+      async function refresh(){ try{ clear(); const C=window.ADMIN_CONFIG||{}; const res=await fetch(C.FUNCTION_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'listDeposits',limit:100,adminKey:C.ADMIN_KEY})}); const j=await res.json(); if(!res.ok) throw new Error(j.error||('HTTP '+res.status)); render(j.items||[]);}catch(e){ setMsg('Error: '+(e.message||e), false);} }
+      el('refresh').addEventListener('click', refresh); refresh();
+    })();
+  </script>
+</body>
+</html>

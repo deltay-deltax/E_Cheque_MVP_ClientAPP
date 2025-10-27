@@ -12,40 +12,10 @@ class QuickActionItem {
 class QuickActionsViewModel extends ChangeNotifier {
   List<QuickActionItem> get actions => [
     QuickActionItem(
-      "Send Money",
-      Icons.send,
-      Color(0xFFEFF3FF),
-      Color(0xFF2563EB),
-    ),
-    QuickActionItem(
-      "Bank V",
-      Icons.receipt_long,
-      Color(0xFFEFF3FF),
-      Color(0xFF2563EB),
-    ),
-    QuickActionItem(
       "Invoice ",
       Icons.description,
       Color(0xFFE6FFF4),
       Color(0xFF10B981),
-    ),
-    QuickActionItem(
-      "Deposit",
-      Icons.account_balance_wallet,
-      Color(0xFFFFF7E6),
-      Color(0xFFFBBF24),
-    ),
-    QuickActionItem(
-      "Receipt",
-      Icons.receipt,
-      Color(0xFFEFF3FF),
-      Color(0xFF2563EB),
-    ),
-    QuickActionItem(
-      "Stop Cheque",
-      Icons.remove_circle,
-      Color(0xFFFFE7E5),
-      Color(0xFFF87171),
     ),
     QuickActionItem(
       "Recharge",

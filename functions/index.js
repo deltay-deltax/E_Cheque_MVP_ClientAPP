@@ -58,6 +58,95 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
       }
     }
 
+    async function handleListReceipts() {
+      const limit = Math.min(Number(body.limit || 100), 500);
+      const q = await db.collection('receipts').orderBy('serverTime', 'desc').limit(limit).get();
+      const items = q.docs.map(d => ({ id: d.id, ...d.data() }));
+      return res.status(200).json({ ok: true, items });
+    }
+
+    async function handleReceiptPdf() {
+      const id = String(body.receiptId || '');
+      if (!id) return res.status(400).json({ error: 'receiptId required' });
+      const snap = await db.collection('receipts').doc(id).get();
+      if (!snap.exists) return res.status(404).json({ error: 'not_found' });
+      const d = snap.data() || {};
+      const doc = new PDFDocument({ size: 'A4', margin: 40 });
+      const chunks = [];
+      doc.on('data', (c) => chunks.push(c));
+      const done = new Promise((resolve) => doc.on('end', resolve));
+
+      doc.fontSize(20).text('Cash Receipt', { align: 'left' });
+      doc.moveDown(0.4);
+      doc.fontSize(11).text(`Receipt ID: ${id}`);
+      doc.text(`Created: ${d.createdAt || ''}`);
+      doc.moveDown(0.6);
+
+      doc.fontSize(12).fillColor('#1f2937').text('Account Information', { underline: true });
+      doc.moveDown(0.2).fillColor('black');
+      doc.text(`Account Holder: ${d.accountHolderName || ''}`);
+      doc.text(`Account No.: ${d.accountNo || ''}`);
+      doc.text(`Account Type: ${d.accountType || ''}`);
+      doc.moveDown(0.6);
+
+      const amountStr = String(d.amount || '0');
+      doc.fontSize(12).fillColor('#1f2937').text('Amount', { underline: true });
+      doc.moveDown(0.2).fillColor('green').text(`INR ${amountStr}`);
+      if (d.amountInWords) doc.fillColor('black').text(`In Words  ${d.amountInWords}`);
+      doc.moveDown(1.0);
+      doc.fillColor('#1f2937').text('Signatures', { underline: true });
+      doc.moveDown(0.2).fillColor('black');
+      doc.text('Issuer Signature: __________________');
+
+      doc.end();
+      await done;
+      const b64 = Buffer.concat(chunks).toString('base64');
+      return res.status(200).json({ ok: true, pdf: b64 });
+    }
+
+    async function handleVerifyReceipt() {
+      const id = String(body.receiptId || '');
+      if (!id) return res.status(400).json({ error: 'receiptId required' });
+      const receiptRef = db.collection('receipts').doc(id);
+      let txId = null;
+      await db.runTransaction(async (t) => {
+        const snap = await t.get(receiptRef);
+        if (!snap.exists) throw new Error('not_found');
+        const r = snap.data() || {};
+        if ((r.status || 'created') === 'cashed_out') return; // idempotent
+        const userId = r.userId;
+        const amount = Number(r.amount || 0);
+        if (!userId || !(amount > 0)) throw new Error('invalid_payload');
+
+        const userRef = db.collection('users').doc(String(userId));
+        const userSnap = await t.get(userRef);
+        const bank = userSnap.get('bank') || {};
+        const bal = Number(bank.balance || 0);
+
+        const now = admin.firestore.FieldValue.serverTimestamp();
+        // Create debit transaction
+        const txRef = db.collection('transactions').doc();
+        txId = txRef.id;
+        t.set(txRef, {
+          userId,
+          direction: 'debit',
+          amount,
+          at: now,
+          source: 'cash_receipt',
+          status: 'Completed',
+          processedByCF: true,
+          details: { receiptId: id },
+        });
+
+        // Deduct user balance
+        t.set(userRef, { bank: { ...bank, balance: bal - amount } }, { merge: true });
+
+        // Mark receipt cashed out
+        t.set(receiptRef, { status: 'cashed_out', verifiedAt: now, verifiedBy: 'admin', transactionId: txId }, { merge: true });
+      });
+      return res.status(200).json({ ok: true, id, txId });
+    }
+
     async function handleListDeposits() {
       const limit = Math.min(Number(body.limit || 100), 500);
       const q = await db.collection('deposits').orderBy('createdAt', 'desc').limit(limit).get();
@@ -289,6 +378,9 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
     if (action === 'depositGet') return await handleDepositGet();
     if (action === 'verifyDeposit') return await handleVerifyDeposit();
     if (action === 'depositPdf') return await handleDepositPdf();
+    if (action === 'listReceipts') return await handleListReceipts();
+    if (action === 'receiptPdf') return await handleReceiptPdf();
+    if (action === 'verifyReceipt') return await handleVerifyReceipt();
     return res.status(400).json({ error: 'unknown_action' });
   } catch (e) {
     const msg = e?.message || String(e);

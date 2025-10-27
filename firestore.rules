@@ -4,19 +4,19 @@ service cloud.firestore {
     function authed() { return request.auth != null && request.auth.uid != null; }
     function uid() { return request.auth.uid; }
     function isOwner(data) { return authed() && data.userId == uid(); }
-    function requireOwnerWrite() { return authed() && request.resource.data.userId == uid(); }
     function isAdmin() { return authed() && request.auth.token.email == 'admin@gmail.com'; }
+    function ownerOrAdmin(data) { return isOwner(data) || isAdmin(); }
 
     // USERS
     match /users/{userId} {
       allow read: if authed();
-      allow create, update, delete: if authed() && uid() == userId;
+      allow create, update, delete: if authed() && (uid() == userId || isAdmin());
 
       match /cheques/{chequeId} {
         allow read, list: if authed() && uid() == userId;
 
         allow create: if authed()
-          && uid() == userId
+          && (uid() == userId || isAdmin())
           && request.resource.data.issuerUid == uid()
           && request.resource.data.payee is string
           && request.resource.data.amount is number
@@ -26,13 +26,13 @@ service cloud.firestore {
           && request.resource.data.chequeNo is string;
 
         allow update: if authed()
-          && uid() == userId
+          && (uid() == userId || isAdmin())
           && request.resource.data.diff(resource.data).addedKeys().size() == 0
           && request.resource.data.diff(resource.data).removedKeys().size() == 0
           && request.resource.data.diff(resource.data).changedKeys()
              .hasOnly(['status', 'notes', 'signaturePath']);
 
-        allow delete: if authed() && uid() == userId;
+        allow delete: if authed() && (uid() == userId || isAdmin());
       }
 
       match /inboxCheques/{chequeId} {
@@ -49,29 +49,31 @@ service cloud.firestore {
           && request.resource.data.chequeNo is string;
 
         allow update: if authed()
-          && (uid() == userId || uid() == resource.data.issuerUid)
+          && ((uid() == userId || uid() == resource.data.issuerUid) || isAdmin())
           && request.resource.data.diff(resource.data).addedKeys().size() == 0
           && request.resource.data.diff(resource.data).removedKeys().size() == 0
           && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status']);
 
-        allow delete: if authed() && uid() == userId;
+        allow delete: if authed() && (uid() == userId || isAdmin());
       }
     }
 
     // CATEGORIES (top-level)
     match /categories/{id} {
-      allow read: if isOwner(resource.data);
-      allow create: if requireOwnerWrite()
+      allow read: if ownerOrAdmin(resource.data);
+      allow create: if authed()
+        && (request.resource.data.userId == uid() || isAdmin())
         && request.resource.data.keys().hasAll(['userId','name','createdAt'])
         && request.resource.data.name is string
         && request.resource.data.createdAt is timestamp;
-      allow update, delete: if isOwner(resource.data);
+      allow update, delete: if ownerOrAdmin(resource.data);
     }
 
     // TRANSACTIONS (top-level)
     match /transactions/{txId} {
-      allow read: if isOwner(resource.data);
-      allow create: if requireOwnerWrite()
+      allow read: if ownerOrAdmin(resource.data);
+      allow create: if authed()
+        && (request.resource.data.userId == uid() || isAdmin())
         && request.resource.data.amount is number
         && request.resource.data.direction in ['debit','credit']
         && request.resource.data.status in ['Pending','Completed','Failed']
@@ -79,11 +81,41 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // INVOICES (top-level)
+    match /invoices/{id} {
+      allow read: if ownerOrAdmin(resource.data);
+      allow create: if authed()
+        && (request.resource.data.userId == uid() || isAdmin())
+        && request.resource.data.keys().hasAll(['userId','invoiceNo','items','subtotal','tax','total','createdAt'])
+        && request.resource.data.invoiceNo is string
+        && request.resource.data.items is list
+        && request.resource.data.subtotal is number
+        && request.resource.data.tax is number
+        && request.resource.data.total is number
+        && request.resource.data.createdAt is timestamp;
+      allow update, delete: if ownerOrAdmin(resource.data);
+    }
+
+    match /deposits/{id} {
+      allow read: if ownerOrAdmin(resource.data);
+      allow create: if authed()
+        && (request.resource.data.userId == uid() || isAdmin())
+        && request.resource.data.keys().hasAll(['userId','depositAmount','cashBreakdown','cashBreakdownTotal','createdAt'])
+        && request.resource.data.depositAmount is string
+        && request.resource.data.cashBreakdown is map
+        && request.resource.data.cashBreakdownTotal is string
+        && request.resource.data.createdAt is timestamp;
+      allow update: if isAdmin()
+        && request.resource.data.diff(resource.data).addedKeys().size() == 0
+        && request.resource.data.diff(resource.data).removedKeys().size() == 0
+        && request.resource.data.diff(resource.data).changedKeys()
+           .hasOnly(['status','verifiedAt','verifiedBy','transactionId']);
+      allow delete: if isAdmin();
+    }
+
     // BANK USERS (seed/master data)
     match /bankUsers/{docId} {
       allow read: if authed();
-
-      // Admin can manage bank users fully
       allow create, update, delete: if isAdmin();
 
       // Non-admin updates only permitted for PIN fields by the email owner

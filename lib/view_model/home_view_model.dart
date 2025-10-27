@@ -16,6 +16,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   List<QuickAction> quickActions = [
+    // Row 1
     QuickAction(
       "E-Cheque",
       Icons.receipt_long,
@@ -23,7 +24,7 @@ class HomeViewModel extends ChangeNotifier {
       Color(0xFF2563EB),
     ),
     QuickAction(
-      "E-cheque  History",
+      "E-cheque History",
       Icons.call_received,
       Color(0xFFE6FFF4),
       Color(0xFF10B981),
@@ -32,19 +33,31 @@ class HomeViewModel extends ChangeNotifier {
       "Received Cheque",
       Icons.assignment_turned_in,
       Color(0xFFFFF7E6),
-      Color(0xFFFBBF24),
+      Color(0xFFF59E0B),
     ),
     QuickAction(
-      "Transactions",
-      Icons.assignment_outlined,
-      Color(0xFFEFF3FF),
-      Color(0xFF2563EB),
+      "Stop Cheque",
+      Icons.remove_circle,
+      Color(0xFFFFE7E5),
+      Color(0xFFEF4444),
     ),
+
+    //Row 2
+    QuickAction(
+      "Deposit",
+      Icons.account_balance_wallet,
+      Color(0xFFFFF7E6),
+      Color(0xFFF59E0B),
+    ),
+    QuickAction("Receipt", Icons.receipt, Color(0xFFEFF3FF), Color(0xFF2563EB)),
+
+    // Row 3
+    QuickAction("Send Money", Icons.send, Color(0xFFE6FFF4), Color(0xFF10B981)),
     QuickAction(
       "Auto Forms",
       Icons.article,
-      Color(0xFFE6FFF4),
-      Color(0xFF10B981),
+      Color(0xFFF3ECFF),
+      Color(0xFF7C3AED),
     ),
     QuickAction("More", Icons.more_horiz, Color(0xFFEEEEEE), Color(0xFF757575)),
   ];

@@ -177,10 +177,13 @@ class NewInvoiceScreen extends StatelessWidget {
                                   Expanded(
                                     flex: 3,
                                     child: InvoiceInputField(
-                                      hint: "0.00",
-                                      initialValue: "${item.price}",
+                                      hint: "0",
+                                      initialValue: "${item.price.toInt()}",
                                       type: TextInputType.number,
-                                      onChanged: (v) => vm.updateItem(i, price: double.tryParse(v) ?? 0),
+                                      onChanged: (v) {
+                                        final iv = int.tryParse(v) ?? 0;
+                                        vm.updateItem(i, price: iv.toDouble());
+                                      },
                                     ),
                                   ),
                                   const SizedBox(width: 6),

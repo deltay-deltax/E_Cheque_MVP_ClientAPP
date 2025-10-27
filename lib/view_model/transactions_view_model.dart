@@ -15,6 +15,7 @@ class TransactionItem {
   final String date;
   final String status;
   final TransactionType type;
+  final DateTime? at;
 
   TransactionItem({
     required this.title,
@@ -26,6 +27,7 @@ class TransactionItem {
     required this.date,
     required this.status,
     required this.type,
+    this.at,
   });
 }
 
@@ -113,9 +115,10 @@ class TransactionsViewModel extends ChangeNotifier {
     final categoryName = (data['categoryName'] as String?) ?? '';
     final atTs = data['at'];
     String dateStr = '';
+    DateTime? atDt;
     if (atTs is Timestamp) {
-      final dt = atTs.toDate();
-      dateStr = _friendlyTime(dt);
+      atDt = atTs.toDate();
+      dateStr = _friendlyTime(atDt);
     }
     final type = incoming ? TransactionType.income : TransactionType.expense;
     return TransactionItem(
@@ -130,6 +133,7 @@ class TransactionsViewModel extends ChangeNotifier {
       date: dateStr,
       status: 'Completed',
       type: type,
+      at: atDt,
     );
   }
 

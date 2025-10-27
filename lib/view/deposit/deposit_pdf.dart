@@ -23,6 +23,8 @@ class DepositPdf {
           children: [pw.Text(k), pw.Text(v, style: pw.TextStyle(fontWeight: pw.FontWeight.bold))],
         );
 
+    final isVerified = (data['status']?.toString() == 'Verified') || (data['verifiedAt'] != null);
+
     doc.addPage(
       pw.MultiPage(
         pageTheme: const pw.PageTheme(margin: pw.EdgeInsets.all(24)),
@@ -90,6 +92,12 @@ class DepositPdf {
             pw.Text('Authorised Signatory: ____________'),
           ],
         ],
+        footer: (ctx) => isVerified
+            ? pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Verified', style: pw.TextStyle(color: PdfColors.green800, fontWeight: pw.FontWeight.bold)),
+              )
+            : pw.SizedBox(),
       ),
     );
 

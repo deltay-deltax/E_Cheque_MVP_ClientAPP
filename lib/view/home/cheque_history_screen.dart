@@ -38,7 +38,9 @@ class ChequeHistoryScreen extends StatelessWidget {
                     context: context,
                     isScrollControlled: true,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
                     ),
                     builder: (ctx) {
                       final padding = MediaQuery.of(ctx).viewInsets;
@@ -52,7 +54,13 @@ class ChequeHistoryScreen extends StatelessWidget {
                             children: [
                               Row(
                                 children: [
-                                  const Text('Filters', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const Text(
+                                    'Filters',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                   const Spacer(),
                                   TextButton(
                                     onPressed: vm.clearFilters,
@@ -82,7 +90,7 @@ class ChequeHistoryScreen extends StatelessWidget {
                                 label: Text(
                                   vm.dateRange == null
                                       ? 'Pick date range'
-                                      : '${vm.dateRange!.start.year}-${vm.dateRange!.start.month.toString().padLeft(2,'0')}-${vm.dateRange!.start.day.toString().padLeft(2,'0')}  to  ${vm.dateRange!.end.year}-${vm.dateRange!.end.month.toString().padLeft(2,'0')}-${vm.dateRange!.end.day.toString().padLeft(2,'0')}',
+                                      : '${vm.dateRange!.start.year}-${vm.dateRange!.start.month.toString().padLeft(2, '0')}-${vm.dateRange!.start.day.toString().padLeft(2, '0')}  to  ${vm.dateRange!.end.year}-${vm.dateRange!.end.month.toString().padLeft(2, '0')}-${vm.dateRange!.end.day.toString().padLeft(2, '0')}',
                                 ),
                                 onPressed: () async {
                                   final now = DateTime.now();
@@ -188,272 +196,298 @@ class ChequeHistoryScreen extends StatelessWidget {
                       .snapshots(),
                   builder: (context, userSnap) {
                     final userData = userSnap.data?.data();
-                    final bool hasBalance = userData != null && (userData['bank'] is Map) && ((userData['bank'] as Map)['balance'] != null);
+                    final bool hasBalance =
+                        userData != null &&
+                        (userData['bank'] is Map) &&
+                        ((userData['bank'] as Map)['balance'] != null);
                     final balance = hasBalance
-                        ? (((userData!['bank'] as Map<String, dynamic>)['balance'] as num).toDouble())
+                        ? (((userData!['bank']
+                                      as Map<String, dynamic>)['balance']
+                                  as num)
+                              .toDouble())
                         : 0.0;
                     if (userSnap.connectionState == ConnectionState.active) {
-                      debugPrint("[History] balance snapshot: hasBalance=$hasBalance balance=$balance");
+                      debugPrint(
+                        "[History] balance snapshot: hasBalance=$hasBalance balance=$balance",
+                      );
                     }
                     return StreamBuilder<List<Map<String, dynamic>>>(
                       stream: ChequeService.instance.streamUserCheques(),
                       builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: CircularProgressIndicator(),
-                        ),
-                      );
-                    }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        }
 
-                    final docs = snapshot.data ?? [];
-                    if (docs.isEmpty) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Center(
-                              child: Text(
-                                'No cheques yet',
-                                style: TextStyle(color: AppColors.mutedText),
+                        final docs = snapshot.data ?? [];
+                        if (docs.isEmpty) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Center(
+                                  child: Text(
+                                    'No cheques yet',
+                                    style: TextStyle(
+                                      color: AppColors.mutedText,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                  children: const [
+                                    _StatusTotal(
+                                      '₹0.00',
+                                      'Total Cleared',
+                                      AppColors.primaryGreen,
+                                    ),
+                                    SizedBox(width: 24),
+                                    _StatusTotal(
+                                      '₹0.00',
+                                      'Pending',
+                                      AppColors.primaryYellow,
+                                    ),
+                                    SizedBox(width: 24),
+                                    _StatusTotal(
+                                      '₹0.00',
+                                      'Rejected',
+                                      Colors.red,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        // Apply filters
+                        final filteredDocs = docs.where(vm.matchesDoc).toList();
+
+                        final clearedCount = filteredDocs
+                            .where(
+                              (d) =>
+                                  (d['status']?.toString().toLowerCase() ??
+                                      '') ==
+                                  'cleared',
+                            )
+                            .length;
+                        final pendingCount = filteredDocs
+                            .where(
+                              (d) =>
+                                  (d['status']?.toString().toLowerCase() ??
+                                      '') ==
+                                  'pending',
+                            )
+                            .length;
+                        final rejectedCount = filteredDocs
+                            .where(
+                              (d) =>
+                                  (d['status']?.toString().toLowerCase() ??
+                                      '') ==
+                                  'rejected',
+                            )
+                            .length;
+
+                        final filtered = filteredDocs;
+
+                        final List<Widget> children = [
+                          Container(
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 10,
+                              horizontal: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  blurRadius: 8,
+                                  color: Colors.black12.withOpacity(0.05),
+                                ),
+                              ],
+                            ),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _StatusChipH(
+                                    label: 'Cleared',
+                                    count: clearedCount,
+                                    color: AppColors.primaryGreen,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _StatusChipH(
+                                    label: 'Pending',
+                                    count: pendingCount,
+                                    color: AppColors.primaryYellow,
+                                  ),
+                                  const SizedBox(width: 12),
+                                  _StatusChipH(
+                                    label: 'Rejected',
+                                    count: rejectedCount,
+                                    color: Colors.red,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 8),
+                        ];
+
+                        children.addAll(
+                          filtered.map((d) {
+                            final statusStr =
+                                (d['status']?.toString().toLowerCase() ??
+                                'pending');
+                            ChequeStatus status;
+                            switch (statusStr) {
+                              case 'cleared':
+                                status = ChequeStatus.cleared;
+                                break;
+                              case 'rejected':
+                                status = ChequeStatus.rejected;
+                                break;
+                              case 'bounced':
+                                status = ChequeStatus.bounced;
+                                break;
+                              default:
+                                status = ChequeStatus.pending;
+                            }
+
+                            final amount = (d['amount'] is num)
+                                ? (d['amount'] as num).toDouble()
+                                : double.tryParse('${d['amount']}') ?? 0.0;
+
+                            final model = ChequeModel(
+                              name: d['payee'] ?? 'Unknown',
+                              subText: d['bankName'] ?? '',
+                              amount: amount,
+                              status: status,
+                              dateText: _formatDate(d['date']),
+                              id: d['id'],
+                              chequeNo: d['chequeNo'],
+                              extraDesc: null,
+                            );
+
+                            // Rule: cleared=grey; amount <= 90% of balance => green; 90%-100% => yellow; >100% => red
+                            Color? dot;
+                            if (status == ChequeStatus.cleared) {
+                              dot = Colors.grey;
+                            } else if (!hasBalance) {
+                              dot =
+                                  null; // avoid wrong color until balance loads
+                            } else {
+                              final reachableBand =
+                                  balance * 0.9; // 90% of balance
+                              if (amount > balance) {
+                                dot = Colors.red;
+                              } else if (amount >= reachableBand) {
+                                dot = AppColors.primaryYellow;
+                              } else {
+                                dot = AppColors.primaryGreen;
+                              }
+                            }
+                            final colorName = dot == null
+                                ? 'none'
+                                : (dot == Colors.red
+                                      ? 'red'
+                                      : (dot == AppColors.primaryYellow
+                                            ? 'yellow'
+                                            : (dot == AppColors.primaryGreen
+                                                  ? 'green'
+                                                  : (dot == Colors.grey
+                                                        ? 'grey'
+                                                        : dot.toString()))));
+                            debugPrint(
+                              "[History] cheque id=${d['id']} amount=$amount balance=$balance dot=$colorName status=$status",
+                            );
+
+                            return ChequeCard(
+                              model: model,
+                              showActions: false,
+                              statusDotColor: dot,
+                              onView: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ViewChequeScreen(
+                                      chequeId: d['id'] as String,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          }).toList(),
+                        );
+
+                        // Compute real totals by summing amounts per status
+                        double clearedTotal = 0,
+                            pendingTotal = 0,
+                            rejectedTotal = 0;
+                        for (final d in filteredDocs) {
+                          final statusStr =
+                              (d['status']?.toString().toLowerCase() ??
+                              'pending');
+                          final amount = (d['amount'] is num)
+                              ? (d['amount'] as num).toDouble()
+                              : double.tryParse('${d['amount']}') ?? 0.0;
+                          switch (statusStr) {
+                            case 'cleared':
+                              clearedTotal += amount;
+                              break;
+                            case 'rejected':
+                              rejectedTotal += amount;
+                              break;
+                            default:
+                              if (statusStr == 'pending')
+                                pendingTotal += amount;
+                          }
+                        }
+
+                        children.add(const SizedBox(height: 16));
+                        children.add(
                           SingleChildScrollView(
                             scrollDirection: Axis.horizontal,
                             child: Row(
-                              children: const [
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
                                 _StatusTotal(
-                                  '₹0.00',
-                                  'Total Cleared',
+                                  "₹${clearedTotal.toStringAsFixed(2)}",
+                                  "Total Cleared",
                                   AppColors.primaryGreen,
                                 ),
-                                SizedBox(width: 24),
+                                const SizedBox(width: 24),
                                 _StatusTotal(
-                                  '₹0.00',
-                                  'Pending',
+                                  "₹${pendingTotal.toStringAsFixed(2)}",
+                                  "Pending",
                                   AppColors.primaryYellow,
                                 ),
-                                SizedBox(width: 24),
-                                _StatusTotal('₹0.00', 'Rejected', Colors.red),
+                                const SizedBox(width: 24),
+                                _StatusTotal(
+                                  "₹${rejectedTotal.toStringAsFixed(2)}",
+                                  "Rejected",
+                                  Colors.red,
+                                ),
                               ],
                             ),
                           ),
-                        ],
-                      );
-                    }
-
-                    // Apply filters
-                    final filteredDocs = docs.where(vm.matchesDoc).toList();
-
-                    final clearedCount = filteredDocs
-                        .where(
-                          (d) =>
-                              (d['status']?.toString().toLowerCase() ?? '') ==
-                              'cleared',
-                        )
-                        .length;
-                    final pendingCount = filteredDocs
-                        .where(
-                          (d) =>
-                              (d['status']?.toString().toLowerCase() ?? '') ==
-                              'pending',
-                        )
-                        .length;
-                    final rejectedCount = filteredDocs
-                        .where(
-                          (d) =>
-                              (d['status']?.toString().toLowerCase() ?? '') ==
-                              'rejected',
-                        )
-                        .length;
-
-                    final filtered = filteredDocs;
-
-                    final List<Widget> children = [
-                      Container(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              blurRadius: 8,
-                              color: Colors.black12.withOpacity(0.05),
-                            ),
-                          ],
-                        ),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Row(
-                            children: [
-                              _StatusChipH(
-                                label: 'Cleared',
-                                count: clearedCount,
-                                color: AppColors.primaryGreen,
-                              ),
-                              const SizedBox(width: 12),
-                              _StatusChipH(
-                                label: 'Pending',
-                                count: pendingCount,
-                                color: AppColors.primaryYellow,
-                              ),
-                              const SizedBox(width: 12),
-                              _StatusChipH(
-                                label: 'Rejected',
-                                count: rejectedCount,
-                                color: Colors.red,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ];
-
-                    children.addAll(
-                      filtered.map((d) {
-                        final statusStr =
-                            (d['status']?.toString().toLowerCase() ??
-                            'pending');
-                        ChequeStatus status;
-                        switch (statusStr) {
-                          case 'cleared':
-                            status = ChequeStatus.cleared;
-                            break;
-                          case 'rejected':
-                            status = ChequeStatus.rejected;
-                            break;
-                          case 'bounced':
-                            status = ChequeStatus.bounced;
-                            break;
-                          default:
-                            status = ChequeStatus.pending;
-                        }
-
-                        final amount = (d['amount'] is num)
-                            ? (d['amount'] as num).toDouble()
-                            : double.tryParse('${d['amount']}') ?? 0.0;
-
-                        final model = ChequeModel(
-                          name: d['payee'] ?? 'Unknown',
-                          subText: d['bankName'] ?? '',
-                          amount: amount,
-                          status: status,
-                          dateText: _formatDate(d['date']),
-                          id: d['id'],
-                          chequeNo: d['chequeNo'],
-                          extraDesc: null,
                         );
 
-                        // Rule: cleared=grey; amount <= 90% of balance => green; 90%-100% => yellow; >100% => red
-                        Color? dot;
-                        if (status == ChequeStatus.cleared) {
-                          dot = Colors.grey;
-                        } else if (!hasBalance) {
-                          dot = null; // avoid wrong color until balance loads
-                        } else {
-                          final reachableBand = balance * 0.9; // 90% of balance
-                          if (amount > balance) {
-                            dot = Colors.red;
-                          } else if (amount >= reachableBand) {
-                            dot = AppColors.primaryYellow;
-                          } else {
-                            dot = AppColors.primaryGreen;
-                          }
-                        }
-                        final colorName = dot == null
-                            ? 'none'
-                            : (dot == Colors.red
-                                ? 'red'
-                                : (dot == AppColors.primaryYellow
-                                    ? 'yellow'
-                                    : (dot == AppColors.primaryGreen
-                                        ? 'green'
-                                        : (dot == Colors.grey ? 'grey' : dot.toString()))));
-                        debugPrint("[History] cheque id=${d['id']} amount=$amount balance=$balance dot=$colorName status=$status");
-
-                        return ChequeCard(
-                          model: model,
-                          showActions: false,
-                          statusDotColor: dot,
-                          onView: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => ViewChequeScreen(
-                                  chequeId: d['id'] as String,
-                                ),
-                              ),
-                            );
-                          },
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: children,
                         );
-                      }).toList(),
-                    );
-
-                    // Compute real totals by summing amounts per status
-                    double clearedTotal = 0,
-                        pendingTotal = 0,
-                        rejectedTotal = 0;
-                    for (final d in filteredDocs) {
-                      final statusStr =
-                          (d['status']?.toString().toLowerCase() ?? 'pending');
-                      final amount = (d['amount'] is num)
-                          ? (d['amount'] as num).toDouble()
-                          : double.tryParse('${d['amount']}') ?? 0.0;
-                      switch (statusStr) {
-                        case 'cleared':
-                          clearedTotal += amount;
-                          break;
-                        case 'rejected':
-                          rejectedTotal += amount;
-                          break;
-                        default:
-                          if (statusStr == 'pending') pendingTotal += amount;
-                      }
-                    }
-
-                    children.add(const SizedBox(height: 16));
-                    children.add(
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _StatusTotal(
-                              "₹${clearedTotal.toStringAsFixed(2)}",
-                              "Total Cleared",
-                              AppColors.primaryGreen,
-                            ),
-                            const SizedBox(width: 24),
-                            _StatusTotal(
-                              "₹${pendingTotal.toStringAsFixed(2)}",
-                              "Pending",
-                              AppColors.primaryYellow,
-                            ),
-                            const SizedBox(width: 24),
-                            _StatusTotal(
-                              "₹${rejectedTotal.toStringAsFixed(2)}",
-                              "Rejected",
-                              Colors.red,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: children,
-                    );
                       },
                     );
                   },
@@ -531,7 +565,7 @@ class _StatusChipH extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withOpacity(0.45), width: 0.25),
       ),
       child: Row(
         children: [

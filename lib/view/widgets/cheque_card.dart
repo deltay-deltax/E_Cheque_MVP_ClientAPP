@@ -46,7 +46,7 @@ class ChequeCard extends StatelessWidget {
         color: AppColors.white,
         borderRadius: BorderRadius.circular(17),
         border: statusDotColor != null
-            ? Border.all(color: statusDotColor!.withOpacity(0.9), width: 1.4)
+            ? Border.all(color: statusDotColor!.withOpacity(0.9), width: 2.4)
             : null,
         boxShadow: [
           BoxShadow(

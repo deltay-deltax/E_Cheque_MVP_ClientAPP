@@ -216,7 +216,17 @@ class ReceivedChequesScreen extends StatelessWidget {
                         dot = AppColors.primaryGreen;
                       }
                     }
-                    debugPrint("[Received] (no user stream) id=${m.id} amount=$amount issuerBal=$issuerBal dot=${dot == Colors.red ? 'red' : dot == AppColors.primaryYellow ? 'yellow' : dot == AppColors.primaryGreen ? 'green' : dot == Colors.grey ? 'grey' : 'none'}");
+                    debugPrint(
+                      "[Received] (no user stream) id=${m.id} amount=$amount issuerBal=$issuerBal dot=${dot == Colors.red
+                          ? 'red'
+                          : dot == AppColors.primaryYellow
+                          ? 'yellow'
+                          : dot == AppColors.primaryGreen
+                          ? 'green'
+                          : dot == Colors.grey
+                          ? 'grey'
+                          : 'none'}",
+                    );
                     return ChequeCard(
                       model: m,
                       showActions: false,
@@ -240,12 +250,19 @@ class ReceivedChequesScreen extends StatelessWidget {
                         .snapshots(),
                     builder: (context, userSnap) {
                       final u = userSnap.data?.data();
-                      final hasIssuerBal = u != null && (u['bank'] is Map) && ((u['bank'] as Map)['balance'] != null);
+                      final hasIssuerBal =
+                          u != null &&
+                          (u['bank'] is Map) &&
+                          ((u['bank'] as Map)['balance'] != null);
                       final issuerBal = hasIssuerBal
-                          ? (((u['bank'] as Map<String, dynamic>)['balance'] as num).toDouble())
+                          ? (((u['bank'] as Map<String, dynamic>)['balance']
+                                    as num)
+                                .toDouble())
                           : ((src['issuerBalance'] as num?)?.toDouble() ?? 0.0);
                       if (userSnap.connectionState == ConnectionState.active) {
-                        debugPrint("[Received] balance snapshot: hasIssuerBal=$hasIssuerBal issuerBal=$issuerBal for uid=$issuerUid");
+                        debugPrint(
+                          "[Received] balance snapshot: hasIssuerBal=$hasIssuerBal issuerBal=$issuerBal for uid=$issuerUid",
+                        );
                       }
                       Color? dot;
                       if (m.status == ChequeStatus.cleared) {
@@ -265,13 +282,17 @@ class ReceivedChequesScreen extends StatelessWidget {
                       final colorName = dot == null
                           ? 'none'
                           : (dot == Colors.red
-                              ? 'red'
-                              : (dot == AppColors.primaryYellow
-                                  ? 'yellow'
-                                  : (dot == AppColors.primaryGreen
-                                      ? 'green'
-                                      : (dot == Colors.grey ? 'grey' : dot.toString()))));
-                      debugPrint("[Received] cheque id=${m.id} amount=$amount issuerBal=$issuerBal dot=$colorName status=${m.status}");
+                                ? 'red'
+                                : (dot == AppColors.primaryYellow
+                                      ? 'yellow'
+                                      : (dot == AppColors.primaryGreen
+                                            ? 'green'
+                                            : (dot == Colors.grey
+                                                  ? 'grey'
+                                                  : dot.toString()))));
+                      debugPrint(
+                        "[Received] cheque id=${m.id} amount=$amount issuerBal=$issuerBal dot=$colorName status=${m.status}",
+                      );
                       return ChequeCard(
                         model: m,
                         showActions: false,

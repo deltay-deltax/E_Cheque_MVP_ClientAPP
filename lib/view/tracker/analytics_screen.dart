@@ -10,6 +10,7 @@ import '../chat/chat_screen.dart';
 import '../home/profile_screen.dart';
 import 'add_expense_screen.dart';
 import 'add_category_screen.dart';
+import '../widgets/transaction_card.dart';
 
 class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
@@ -25,7 +26,7 @@ class AnalyticsScreen extends StatelessWidget {
         child: Consumer2<AnalyticsViewModel, TransactionsViewModel>(
           builder: (context, analyticsVm, txVm, _) {
             return DefaultTabController(
-              length: 2,
+              length: 3,
               child: Scaffold(
                 backgroundColor: const Color(0xFFF7F9FC),
                 appBar: AppBar(
@@ -60,6 +61,7 @@ class AnalyticsScreen extends StatelessWidget {
                     tabs: [
                       Tab(text: 'Insights'),
                       Tab(text: 'Payees'),
+                      Tab(text: 'Transactions'),
                     ],
                   ),
                 ),
@@ -181,17 +183,25 @@ class AnalyticsScreen extends StatelessWidget {
                                     ElevatedButton.icon(
                                       onPressed: () {
                                         Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const AddExpenseScreen(),
+                                          ),
                                         );
                                       },
-                                      icon: const Icon(Icons.add_circle_outline),
+                                      icon: const Icon(
+                                        Icons.add_circle_outline,
+                                      ),
                                       label: const Text('Add Expense'),
                                     ),
                                     const SizedBox(width: 12),
                                     OutlinedButton.icon(
                                       onPressed: () {
                                         Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (_) => const AddCategoryScreen()),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const AddCategoryScreen(),
+                                          ),
                                         );
                                       },
                                       icon: const Icon(Icons.category_outlined),
@@ -413,6 +423,138 @@ class AnalyticsScreen extends StatelessWidget {
                         );
                       },
                     ),
+
+                    // ------------------ TRANSACTIONS TAB ------------------
+                    // ------------------ TRANSACTIONS TAB ------------------
+                    Builder(
+                      builder: (_) {
+                        //
+                        // --- THIS IS THE CORRECTED LOGIC ---
+                        //
+
+                        // --- Transactions list UI (chart removed) ---
+                        return ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: [
+                            TextField(
+                              decoration: InputDecoration(
+                                hintText: 'Search transactions... ',
+                                prefixIcon: const Icon(
+                                  Icons.search,
+                                  color: Color(0xFF818181),
+                                ),
+                                filled: true,
+                                fillColor: Colors.white,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
+                              onChanged: txVm.search,
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              height: 54,
+                              child: ListView(
+                                scrollDirection: Axis.horizontal,
+                                children: [
+                                  _TxFilterChip(
+                                    text: 'All',
+                                    isSelected:
+                                        txVm.selectedType ==
+                                        TransactionType.all,
+                                    onTap: () =>
+                                        txVm.setType(TransactionType.all),
+                                  ),
+                                  _TxFilterChip(
+                                    text: 'Income',
+                                    isSelected:
+                                        txVm.selectedType ==
+                                        TransactionType.income,
+                                    onTap: () =>
+                                        txVm.setType(TransactionType.income),
+                                  ),
+                                  _TxFilterChip(
+                                    text: 'Expense',
+                                    isSelected:
+                                        txVm.selectedType ==
+                                        TransactionType.expense,
+                                    onTap: () =>
+                                        txVm.setType(TransactionType.expense),
+                                  ),
+                                  _TxFilterChip(
+                                    text: 'Pending',
+                                    isSelected:
+                                        txVm.selectedType ==
+                                        TransactionType.pending,
+                                    onTap: () =>
+                                        txVm.setType(TransactionType.pending),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  '${txVm.filteredTransactions.length} transactions',
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                () {
+                                  final filteredTotal = txVm
+                                      .filteredTransactions
+                                      .fold<double>(
+                                        0,
+                                        (sum, t) =>
+                                            sum +
+                                            (t.incoming ? t.amount : -t.amount),
+                                      );
+                                  return Text(
+                                    '₹${filteredTotal.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 18,
+                                      color: Color(0xFF16202C),
+                                    ),
+                                  );
+                                }(),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'All Transactions',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.grey[900],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            if (txVm.filteredTransactions.isEmpty &&
+                                txVm.transactions.isEmpty)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Text(
+                                    'No transactions found',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              ...(txVm.filteredTransactions.isEmpty
+                                      ? txVm.transactions
+                                      : txVm.filteredTransactions)
+                                  .map((t) => TransactionCard(tx: t)),
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
                 bottomNavigationBar: BottomNavigationBar(
@@ -430,22 +572,36 @@ class AnalyticsScreen extends StatelessWidget {
                         );
                         break;
                       case 1:
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => ChatScreen()),
-                        );
+                        Navigator.of(
+                          context,
+                        ).push(MaterialPageRoute(builder: (_) => ChatScreen()));
                         break;
                       case 3:
                         Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const ProfileScreen(),
+                          ),
                         );
                         break;
                     }
                   },
                   items: const [
-                    BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-                    BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-                    BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
-                    BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home),
+                      label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.chat),
+                      label: 'Chat',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.analytics),
+                      label: 'Analytics',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person),
+                      label: 'Profile',
+                    ),
                   ],
                 ),
               ),
@@ -552,7 +708,9 @@ class HorizontalBarChartPainter extends CustomPainter {
     final double barHeight = size.height / entries.length * 0.6;
     final double labelGap = 90;
     final double chartWidth = size.width - labelGap - 10;
-    final maxValue = entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+    final maxValue = entries
+        .map((e) => e.value)
+        .reduce((a, b) => a > b ? a : b);
 
     final axisPaint = Paint()
       ..color = Colors.grey[300]!
@@ -575,7 +733,9 @@ class HorizontalBarChartPainter extends CustomPainter {
 
     for (int i = 0; i < entries.length; i++) {
       final value = entries[i].value;
-      final top = i * (size.height / entries.length) + (size.height / entries.length - barHeight) / 2;
+      final top =
+          i * (size.height / entries.length) +
+          (size.height / entries.length - barHeight) / 2;
       final barLength = maxValue == 0 ? 0 : (value / maxValue) * chartWidth;
 
       final barRect = Rect.fromLTWH(
@@ -602,15 +762,149 @@ class HorizontalBarChartPainter extends CustomPainter {
       final valTp = TextPainter(
         text: TextSpan(
           text: _format(value),
-          style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.w600),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
       )..layout(minWidth: 0, maxWidth: 80);
-      valTp.paint(canvas, Offset(labelGap + barLength + 4, top + barHeight * 0.1));
+      valTp.paint(
+        canvas,
+        Offset(labelGap + barLength + 4, top + barHeight * 0.1),
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+// ------------------------ Net Line Chart Painter ------------------------
+class NetLineChartPainter extends CustomPainter {
+  final List<double> values; // positive = income, negative = expense
+  final double strokeWidth;
+  final double dotRadius;
+  NetLineChartPainter(
+    this.values, {
+    this.strokeWidth = 2.0,
+    this.dotRadius = 2.5,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (values.isEmpty) return;
+    final padding = 12.0;
+    final chartRect = Rect.fromLTWH(
+      padding,
+      padding,
+      size.width - padding * 2,
+      size.height - padding * 2,
+    );
+
+    // Determine Y range symmetric around zero to emphasize up/down
+    double maxAbs = 0;
+    for (final v in values) {
+      final a = v.abs();
+      if (a > maxAbs) maxAbs = a;
+    }
+    if (maxAbs <= 0) maxAbs = 1;
+
+    // Draw horizontal grid (5 lines)
+    final gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.25)
+      ..strokeWidth = 1;
+    const ticks = 4;
+    for (int i = 0; i <= ticks; i++) {
+      final y = chartRect.top + chartRect.height * (i / ticks);
+      canvas.drawLine(
+        Offset(chartRect.left, y),
+        Offset(chartRect.right, y),
+        gridPaint,
+      );
+    }
+
+    // Zero baseline
+    final zeroY = chartRect.center.dy;
+    canvas.drawLine(
+      Offset(chartRect.left, zeroY),
+      Offset(chartRect.right, zeroY),
+      Paint()
+        ..color = Colors.grey.withOpacity(0.6)
+        ..strokeWidth = 1.2,
+    );
+
+    // Build points
+    final dx = chartRect.width / (values.length - 1).clamp(1, double.infinity);
+    final path = Path();
+    for (int i = 0; i < values.length; i++) {
+      final x = chartRect.left + dx * i;
+      final norm = (values[i] / (maxAbs * 1.2)).clamp(-1.0, 1.0);
+      final y = zeroY - norm * (chartRect.height / 2);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    // Draw line
+    final linePaint = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(path, linePaint);
+
+    // Draw points
+    final dotPaint = Paint()..color = const Color(0xFF2563EB);
+    for (int i = 0; i < values.length; i++) {
+      final x = chartRect.left + dx * i;
+      final norm = (values[i] / (maxAbs * 1.2)).clamp(-1.0, 1.0);
+      final y = zeroY - norm * (chartRect.height / 2);
+      canvas.drawCircle(Offset(x, y), dotRadius, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant NetLineChartPainter oldDelegate) =>
+      oldDelegate.values != values;
+}
+
+class _TxFilterChip extends StatelessWidget {
+  final String text;
+  final bool isSelected;
+  final VoidCallback onTap;
+  const _TxFilterChip({
+    required this.text,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 12, bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF6653ED) : Colors.white,
+          border: Border.all(color: const Color(0xFFE0E0E0)),
+          borderRadius: BorderRadius.circular(30),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? Colors.white : const Color(0xFF16202C),
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
 }
