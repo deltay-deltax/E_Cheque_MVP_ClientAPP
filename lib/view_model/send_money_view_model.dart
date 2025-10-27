@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../services/bank_service.dart';
+import '../services/notification_service.dart';
 
 class TransferMethod {
   final String label;
@@ -287,6 +288,32 @@ class SendMoneyViewModel extends ChangeNotifier {
         if (categoryId != null && categoryId!.isNotEmpty) 'categoryId': categoryId,
         if (categoryName != null && categoryName!.isNotEmpty) 'categoryName': categoryName,
       });
+
+      // Notifications
+      try {
+        await NotificationService.instance.send(
+          toUid: uid,
+          type: 'tx_sent',
+          title: 'Payment sent',
+          body: 'You paid ₹$amount ${isMobile ? 'to $receiver' : 'via bank transfer'}',
+          data: {
+            'amount': amount,
+            'method': isMobile ? 'mobile' : 'bank_transfer',
+          },
+        );
+        if (receiverUid != null && receiverUid.isNotEmpty && receiverUid != uid) {
+          await NotificationService.instance.send(
+            toUid: receiverUid,
+            type: 'tx_received',
+            title: 'Payment received',
+            body: 'You received ₹$amount',
+            data: {
+              'amount': amount,
+              'fromUid': uid,
+            },
+          );
+        }
+      } catch (_) {}
 
       sent = true;
     } catch (e) {

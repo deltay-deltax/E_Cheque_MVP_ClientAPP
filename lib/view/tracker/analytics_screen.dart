@@ -8,8 +8,6 @@ import '../../view_model/transactions_view_model.dart';
 import '../home/home_screen.dart';
 import '../chat/chat_screen.dart';
 import '../home/profile_screen.dart';
-import 'add_expense_screen.dart';
-import 'add_category_screen.dart';
 import '../widgets/transaction_card.dart';
 
 class AnalyticsScreen extends StatelessWidget {
@@ -165,54 +163,8 @@ class AnalyticsScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
-                        // Analytics content
-                        if (!analyticsVm.hasDataForMonth)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 40),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text(
-                                  'No data found for this month',
-                                  style: TextStyle(color: Colors.grey),
-                                ),
-                                const SizedBox(height: 12),
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const AddExpenseScreen(),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.add_circle_outline,
-                                      ),
-                                      label: const Text('Add Expense'),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    OutlinedButton.icon(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const AddCategoryScreen(),
-                                          ),
-                                        );
-                                      },
-                                      icon: const Icon(Icons.category_outlined),
-                                      label: const Text('Add Category'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          )
-                        else ...[
+                        // Analytics content: always show categories (defaults appear with 0 before any transactions)
+                        ...[
                           SizedBox(
                             height: 200,
                             child: Builder(

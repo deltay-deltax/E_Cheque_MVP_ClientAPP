@@ -25,6 +25,33 @@ class ChatMessage {
       );
 }
 
+class _WaveBars extends StatelessWidget {
+  final double level;
+  final bool active;
+  const _WaveBars({required this.level, required this.active});
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = level.clamp(0.0, 60.0);
+    final norm = clamped.toDouble() / 60.0;
+    final bars = List.generate(12, (i) {
+      final phase = (i % 4) / 4.0;
+      final h = 8 + (norm * 28) * (0.6 + 0.4 * phase);
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        width: 4,
+        height: active ? h : 10,
+        decoration: BoxDecoration(
+          color: active ? AppColors.primaryBlue : AppColors.grey300,
+          borderRadius: BorderRadius.circular(2),
+        ),
+      );
+    });
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: bars);
+  }
+}
+
 class ChatScreen extends StatefulWidget {
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -40,6 +67,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _aiTyping = false;
   Timer? _typingTimer;
   int _typingPhase = 0; // 0..3 dots
+  String _speechDraft = '';
+  bool _speechOpen = false;
+  double _soundLevel = 0.0;
+  bool _speechFinal = false;
 
   @override
   void initState() {
@@ -61,26 +92,45 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       },
       onError: (e) {
-        setState(() => _listening = false);
+        setState(() {
+          _listening = false;
+          _speechOpen = false;
+          _speechDraft = '';
+          _speechFinal = false;
+        });
       },
     );
     if (!available) return;
-    setState(() => _listening = true);
+    setState(() {
+      _speechDraft = '';
+      _speechFinal = false;
+      _speechOpen = true;
+      _listening = true;
+      _soundLevel = 0.0;
+    });
     await _stt.listen(
       onResult: (res) {
         final txt = res.recognizedWords.trim();
         if (txt.isEmpty) return;
-        controller.text = txt;
+        setState(() {
+          _speechDraft = txt;
+          _speechFinal = res.finalResult;
+        });
         if (res.finalResult) {
-          sendMessage(txt);
-          controller.clear();
           _stt.stop();
-          setState(() => _listening = false);
+          setState(() {
+            _listening = false;
+          });
         }
       },
       pauseFor: const Duration(seconds: 3),
       listenFor: const Duration(seconds: 30),
       partialResults: true,
+      onSoundLevelChange: (level) {
+        setState(() {
+          _soundLevel = level;
+        });
+      },
     );
   }
 
@@ -453,8 +503,10 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
       backgroundColor: AppColors.white,
-      body: Column(
+      body: Stack(
         children: [
+          Column(
+            children: [
           Container(
             width: double.infinity,
             color: AppColors.white,
@@ -747,6 +799,107 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ),
           ),
+            ],
+          ),
+          if (_speechOpen)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26.withOpacity(0.08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _listening ? 'Listening…' : (_speechFinal ? 'Preview' : 'Processing…'),
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _speechOpen = false;
+                              _speechDraft = '';
+                              _speechFinal = false;
+                            });
+                          },
+                          icon: const Icon(Icons.close),
+                        )
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 36,
+                      child: _WaveBars(level: _soundLevel, active: _listening),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        _speechDraft.isEmpty ? 'Say something…' : _speechDraft,
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () async {
+                              try { await _stt.stop(); } catch (_) {}
+                              setState(() {
+                                _listening = false;
+                                _speechOpen = false;
+                                _speechDraft = '';
+                                _speechFinal = false;
+                              });
+                            },
+                            child: const Text('Cancel'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _speechDraft.trim().isEmpty
+                                ? null
+                                : () async {
+                                    final txt = _speechDraft.trim();
+                                    setState(() {
+                                      _speechOpen = false;
+                                      _speechDraft = '';
+                                      _speechFinal = false;
+                                    });
+                                    controller.clear();
+                                    await sendMessage(txt);
+                                  },
+                            child: const Text('Send'),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart';
 
 class ChequeService {
   ChequeService._();
@@ -90,6 +91,20 @@ class ChequeService {
         'createdAt': FieldValue.serverTimestamp(),
         'chequeNo': chequeNoVal,
       });
+      // Notify receiver about new cheque
+      try {
+        await NotificationService.instance.send(
+          toUid: resolvedReceiverUid,
+          type: 'cheque_received',
+          title: 'Cheque received',
+          body: 'You received a cheque of ₹${double.tryParse(amount) ?? 0.0}',
+          data: {
+            'chequeId': newId,
+            'chequeNo': chequeNoVal,
+            'fromUid': uid,
+          },
+        );
+      } catch (_) {}
     }
     return newId;
   }
@@ -200,6 +215,49 @@ class ChequeService {
             }
           } catch (_) {}
         }
+
+        // Notifications for status change
+        try {
+          final amt = (data['amount'] as num?)?.toDouble() ?? 0.0;
+          final chequeNo = (data['chequeNo'] as String?) ?? '';
+          if (finalStatus == 'cleared') {
+            await NotificationService.instance.send(
+              toUid: uid,
+              type: 'cheque_cleared',
+              title: 'Cheque cleared',
+              body: 'Cheque #$chequeNo cleared for ₹$amt',
+              data: {'chequeId': d.id},
+            );
+            final receiverUid = (data['receiverUid'] as String?);
+            if (receiverUid != null && receiverUid.isNotEmpty && receiverUid != uid) {
+              await NotificationService.instance.send(
+                toUid: receiverUid,
+                type: 'cheque_cleared_received',
+                title: 'Cheque credited',
+                body: 'Cheque #$chequeNo credited for ₹$amt',
+                data: {'chequeId': d.id},
+              );
+            }
+          } else if (finalStatus == 'bounced') {
+            await NotificationService.instance.send(
+              toUid: uid,
+              type: 'cheque_bounced',
+              title: 'Cheque bounced',
+              body: 'Cheque #$chequeNo bounced due to insufficient funds',
+              data: {'chequeId': d.id},
+            );
+            final receiverUid = (data['receiverUid'] as String?);
+            if (receiverUid != null && receiverUid.isNotEmpty && receiverUid != uid) {
+              await NotificationService.instance.send(
+                toUid: receiverUid,
+                type: 'cheque_bounced_received',
+                title: 'Cheque bounced',
+                body: 'Cheque #$chequeNo from issuer bounced',
+                data: {'chequeId': d.id},
+              );
+            }
+          }
+        } catch (_) {}
       }
     }
   }

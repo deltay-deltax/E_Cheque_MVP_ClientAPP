@@ -336,12 +336,48 @@ class SendMoneyScreen extends StatelessWidget {
                                   FirebaseAuth.instance.currentUser?.uid;
                               if (uid == null || uid.isEmpty)
                                 return <Category>[];
+                              // Ensure defaults exist, then load
+                              await CategoriesService.instance
+                                  .ensureDefaultCategories(uid);
                               return CategoriesService.instance
                                   .streamUserCategories(uid)
                                   .first;
                             })(),
                             builder: (context, snap) {
-                              final cats = snap.data ?? [];
+                              var cats = snap.data ?? [];
+                              if (cats.isEmpty) {
+                                final now = Timestamp.now();
+                                cats = [
+                                  Category(
+                                      id: 'def_travel',
+                                      userId: '',
+                                      name: 'Travelling',
+                                      color: '#2563EB',
+                                      icon: 'flight',
+                                      createdAt: now),
+                                  Category(
+                                      id: 'def_fashion',
+                                      userId: '',
+                                      name: 'Fashion',
+                                      color: '#6653ED',
+                                      icon: 'checkroom',
+                                      createdAt: now),
+                                  Category(
+                                      id: 'def_food',
+                                      userId: '',
+                                      name: 'Food & Drink',
+                                      color: '#10B981',
+                                      icon: 'restaurant',
+                                      createdAt: now),
+                                  Category(
+                                      id: 'def_house',
+                                      userId: '',
+                                      name: 'House',
+                                      color: '#F59E0B',
+                                      icon: 'home',
+                                      createdAt: now),
+                                ];
+                              }
                               return Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [

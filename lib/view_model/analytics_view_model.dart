@@ -176,6 +176,8 @@ class AnalyticsViewModel extends ChangeNotifier {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
     _catSub?.cancel();
+    // Ensure default categories exist for the user
+    CategoriesService.instance.ensureDefaultCategories(uid);
     _catSub = CategoriesService.instance.streamUserCategories(uid).listen((cats) {
       _categories = cats;
       notifyListeners();
@@ -201,8 +203,7 @@ class AnalyticsViewModel extends ChangeNotifier {
   }
 
   List<AnalyticsCategory> get categories {
-    if (!_hasDataForMonth) return [];
-    // Compute total spend for the month
+    // Compute total spend for the month (may be 0)
     final total = _categoryTotals.values.fold<double>(0.0, (s, v) => s + v);
     // Map icon string to Material icon fallback for known defaults
     IconData _iconFor(String iconStr, String name) {
@@ -232,17 +233,15 @@ class AnalyticsViewModel extends ChangeNotifier {
       return Color(0xFF000000 | parsed).withOpacity(0.12); // soft pastel bg
     }
 
-    // Build list joined with category meta
-    final byId = {for (final c in _categories) c.id: c};
+    // Build list for all known categories, defaulting to 0 amounts
     final items = <AnalyticsCategory>[];
-    _categoryTotals.forEach((catId, amount) {
-      final c = byId[catId];
-      final name = c?.name ?? 'Other';
-      final icon = _iconFor(c?.icon ?? 'category', name);
-      // Ensure 'Other' always uses a distinct color so it doesn't clash with user-defined categories like Travelling
+    for (final c in _categories) {
+      final amount = (_categoryTotals[c.id] ?? 0.0);
+      final name = c.name.isNotEmpty ? c.name : 'Other';
+      final icon = _iconFor(c.icon, name);
       final color = name.toLowerCase() == 'other'
-          ? const Color(0xFF9C27B0).withOpacity(0.12) // distinct purple tint
-          : _colorFromHex(c?.color ?? '#2563EB');
+          ? const Color(0xFF9C27B0).withOpacity(0.12)
+          : _colorFromHex(c.color);
       final pct = total <= 0 ? 0 : ((amount / total) * 100).round();
       items.add(
         AnalyticsCategory(
@@ -256,9 +255,7 @@ class AnalyticsViewModel extends ChangeNotifier {
           summaryDesc: '',
         ),
       );
-    });
-
-    // If no spend, return empty to allow UI to show "No data"
+    }
 
     // Sort by amount desc
     items.sort((a, b) => b.amount.compareTo(a.amount));

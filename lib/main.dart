@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/routes/app_routes.dart';
 import 'view_model/splash_view_model.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'services/key.dart';
+import 'localization/localization_provider.dart';
+import 'localization/l10n.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,16 +35,28 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => SplashViewModel())],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'E-Cheque MVP',
-        theme: ThemeData(
-          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-          useMaterial3: true,
+      providers: [
+        ChangeNotifierProvider(create: (_) => SplashViewModel()),
+        ChangeNotifierProvider(create: (_) => LocalizationProvider()..load()),
+      ],
+      child: Consumer<LocalizationProvider>(
+        builder: (context, lp, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: L10n.tr(lp.code, 'app_name'),
+          locale: lp.locale,
+          supportedLocales: L10n.supportedLocales,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+            useMaterial3: true,
+          ),
+          initialRoute: AppRoutes.initialRoute,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
         ),
-        initialRoute: AppRoutes.initialRoute,
-        onGenerateRoute: AppRoutes.onGenerateRoute,
       ),
     );
   }

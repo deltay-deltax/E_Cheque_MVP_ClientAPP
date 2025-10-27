@@ -9,6 +9,8 @@ import '../../view_model/home_view_model.dart';
 import '../../core/routes/app_routes.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../services/notification_service.dart';
+import '../notifications/notifications_screen.dart';
 import '../../services/user_service.dart';
 import 'e_cheque_screen.dart';
 import 'package:echeque_mvp/view/other_Services/send_money_screen.dart';
@@ -55,12 +57,59 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: AppColors.white,
                 automaticallyImplyLeading: false,
                 actions: [
-                  IconButton(
-                    icon: const Icon(
-                      Icons.notifications_none,
-                      color: Colors.black87,
-                    ),
-                    onPressed: () {},
+                  Builder(
+                    builder: (context) {
+                      final uid = FirebaseAuth.instance.currentUser?.uid;
+                      if (uid == null) {
+                        return IconButton(
+                          icon: const Icon(
+                            Icons.notifications_none,
+                            color: Colors.black87,
+                          ),
+                          onPressed: () {},
+                        );
+                      }
+                      return StreamBuilder<int>(
+                        stream: NotificationService.instance.streamUnreadCount(uid),
+                        builder: (context, snap) {
+                          final count = snap.data ?? 0;
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.notifications_none,
+                                  color: Colors.black87,
+                                ),
+                                onPressed: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const NotificationsScreen(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              if (count > 0)
+                                Positioned(
+                                  right: 10,
+                                  top: 10,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      count > 9 ? '9+' : '$count',
+                                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        },
+                      );
+                    },
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12),

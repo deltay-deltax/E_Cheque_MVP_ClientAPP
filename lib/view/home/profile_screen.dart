@@ -10,6 +10,8 @@ import '../widgets/profile_tile.dart';
 import 'home_screen.dart';
 import '../chat/chat_screen.dart';
 import '../tracker/analytics_screen.dart';
+import '../../localization/localization_provider.dart';
+import '../../localization/l10n.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -26,11 +28,13 @@ class ProfileScreen extends StatelessWidget {
             elevation: 0,
             centerTitle: true,
             leading: const BackButton(color: Colors.black),
-            title: Text(
-              'Profile',
-              style: TextStyle(
-                color: AppColors.darkText,
-                fontWeight: FontWeight.w600,
+            title: Consumer<LocalizationProvider>(
+              builder: (context, lp, _) => Text(
+                L10n.tr(lp.code, 'profile'),
+                style: TextStyle(
+                  color: AppColors.darkText,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             actions: [
@@ -109,53 +113,74 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              const Text(
-                'Account Settings',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => Text(
+                  L10n.tr(lp.code, 'account_settings'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
               ),
-              ProfileTile(
-                icon: Icons.person,
-                title: 'Personal Information',
-                subtitle: 'Update your personal detials ',
-                onTap: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-                    ),
-                    builder: (_) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
-                        left: 16,
-                        right: 16,
-                        top: 12,
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => ProfileTile(
+                  icon: Icons.person,
+                  title: L10n.tr(lp.code, 'personal_information'),
+                  subtitle: L10n.tr(lp.code, 'personal_information_sub'),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
                       ),
-                      child: const _PersonalInfoCard(),
-                    ),
-                  );
-                },
+                      builder: (_) => Padding(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom,
+                          left: 16,
+                          right: 16,
+                          top: 12,
+                        ),
+                        child: const _PersonalInfoCard(),
+                      ),
+                    );
+                  },
+                ),
               ),
-              const ProfileTile(
-                icon: Icons.shield,
-                title: 'Security Settings',
-                subtitle: 'Manage passwords and 2FA',
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => ProfileTile(
+                  icon: Icons.shield,
+                  title: L10n.tr(lp.code, 'security_settings'),
+                  subtitle: '—',
+                ),
               ),
-              const ProfileTile(
-                icon: Icons.notifications,
-                title: 'Notification Preferences',
-                subtitle: 'Customize your alerts',
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => ProfileTile(
+                  icon: Icons.notifications,
+                  title: L10n.tr(lp.code, 'notification_preferences'),
+                  subtitle: L10n.tr(lp.code, 'notification_preferences_sub'),
+                ),
               ),
-              const ProfileTile(
-                icon: Icons.language,
-                title: 'Language',
-                subtitle: 'Choose your preferred language',
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => ProfileTile(
+                  icon: Icons.language,
+                  title: L10n.tr(lp.code, 'language'),
+                  subtitle: L10n.tr(lp.code, 'language_sub'),
+                  onTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                      ),
+                      builder: (_) => _LanguageSheet(current: lp.code),
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 16),
 
-              const Text(
-                'Financial Tools',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => Text(
+                  L10n.tr(lp.code, 'financial_tools'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
               ),
               const ProfileTile(
                 icon: Icons.fact_check,
@@ -184,9 +209,11 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              const Text(
-                'Support and Help',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+              Consumer<LocalizationProvider>(
+                builder: (context, lp, _) => Text(
+                  L10n.tr(lp.code, 'support_and_help'),
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
               ),
               const ProfileTile(
                 icon: Icons.help,
@@ -211,12 +238,14 @@ class ProfileScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Text(
-                    'Logout',
-                    style: TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                  child: Consumer<LocalizationProvider>(
+                    builder: (context, lp, _) => Text(
+                      L10n.tr(lp.code, 'logout'),
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
                     ),
                   ),
                 ),
@@ -249,6 +278,7 @@ class ProfileScreen extends StatelessWidget {
                   );
                   break;
               }
+
             },
             items: const [
               BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
@@ -411,6 +441,61 @@ class _PersonalInfoCard extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LanguageSheet extends StatelessWidget {
+  final String current;
+
+  const _LanguageSheet({required this.current});
+
+  @override
+  Widget build(BuildContext context) {
+    final locales = L10n.supportedLocales;
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Consumer<LocalizationProvider>(
+              builder: (context, lp, _) => Text(
+                L10n.tr(lp.code, 'choose_language'),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemBuilder: (context, index) {
+                final locale = locales[index];
+                final code = locale.languageCode;
+                final name = L10n.localeNames[code] ?? code;
+                final selected = code == current;
+                return ListTile(
+                  leading: const Icon(Icons.language),
+                  title: Text(name),
+                  trailing: selected
+                      ? const Icon(Icons.check_circle, color: Colors.green)
+                      : null,
+                  onTap: () async {
+                    await Provider.of<LocalizationProvider>(context, listen: false)
+                        .setCode(code);
+                    if (context.mounted) Navigator.of(context).pop();
+                  },
+                );
+              },
+              separatorBuilder: (_, __) => const Divider(height: 0),
+              itemCount: locales.length,
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
     );
   }
 }

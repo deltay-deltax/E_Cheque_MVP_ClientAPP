@@ -109,6 +109,29 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
       if (!id) return res.status(400).json({ error: 'receiptId required' });
       const receiptRef = db.collection('receipts').doc(id);
       let txId = null;
+      // Resolve sender bankUsers ref outside the transaction (prefer same user's account number on the receipt)
+      let senderBURefOutside = null;
+      let resolvedAccountNoOutside = null;
+      try {
+        const receiptOutside = await receiptRef.get();
+        const rOutside = receiptOutside.data() || {};
+        const userIdOutside = rOutside.userId || null;
+        const acctFromReceipt = rOutside.accountNo || rOutside.accountNumber || null;
+        resolvedAccountNoOutside = acctFromReceipt || null;
+        logger.info('verifyReceipt: loaded outside', { id, userIdOutside, acctFromReceipt });
+        if (userIdOutside) {
+          // Prefer receipt account; fall back to robust resolver by uid
+          senderBURefOutside = await resolveBankUserRefFor(String(userIdOutside), acctFromReceipt || undefined);
+          if (senderBURefOutside) {
+            const sdoc = await senderBURefOutside.get();
+            resolvedAccountNoOutside = sdoc.get('accountNumber') || acctFromReceipt || resolvedAccountNoOutside;
+          }
+          logger.info('verifyReceipt: resolved bankUsers ref', { accountNumber: resolvedAccountNoOutside, found: !!senderBURefOutside });
+        }
+      } catch (e) {
+        // best-effort; continue without bankUsers mirror if resolution fails
+        logger.error('verifyReceipt: pre-resolve failed', { err: e?.message || String(e) });
+      }
       await db.runTransaction(async (t) => {
         const snap = await t.get(receiptRef);
         if (!snap.exists) throw new Error('not_found');
@@ -116,12 +139,18 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
         if ((r.status || 'created') === 'cashed_out') return; // idempotent
         const userId = r.userId;
         const amount = Number(r.amount || 0);
+        const receiptAcct = r.accountNo || r.accountNumber || null;
         if (!userId || !(amount > 0)) throw new Error('invalid_payload');
 
         const userRef = db.collection('users').doc(String(userId));
         const userSnap = await t.get(userRef);
         const bank = userSnap.get('bank') || {};
         const bal = Number(bank.balance || 0);
+        const accountUsed = receiptAcct || bank.accountNumber || resolvedAccountNoOutside || null;
+        // Pre-read bankUsers snapshot BEFORE any writes (to satisfy Firestore transaction rules)
+        const buRefInTx = senderBURefOutside || db.collection('bankUsers').doc(String(userId));
+        const buSnapInTx = await t.get(buRefInTx);
+        logger.info('verifyReceipt: tx begin', { id, userId, amount, accountUsed });
 
         const now = admin.firestore.FieldValue.serverTimestamp();
         // Create debit transaction
@@ -135,11 +164,23 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
           source: 'cash_receipt',
           status: 'Completed',
           processedByCF: true,
-          details: { receiptId: id },
+          details: { receiptId: id, fromAccount: accountUsed },
         });
 
         // Deduct user balance
         t.set(userRef, { bank: { ...bank, balance: bal - amount } }, { merge: true });
+
+        // Mirror bankUsers balance using the pre-read snapshot
+        try {
+          const beforeBal = Number((buSnapInTx.get('balance') ?? 0)) || 0;
+          const acctOnDoc = buSnapInTx.get('accountNumber') || null;
+          const mirrorUpdate = { balance: beforeBal - amount };
+          if (!acctOnDoc && accountUsed) mirrorUpdate.accountNumber = String(accountUsed);
+          t.set(buRefInTx, mirrorUpdate, { merge: true });
+          logger.info('verifyReceipt: mirrored bankUsers balance', { accountNumber: accountUsed, before: beforeBal, after: beforeBal - amount, docPath: buRefInTx.path });
+        } catch (e) {
+          logger.error('verifyReceipt: mirror bankUsers failed', { accountNumber: accountUsed, err: e?.message || String(e) });
+        }
 
         // Mark receipt cashed out
         t.set(receiptRef, { status: 'cashed_out', verifiedAt: now, verifiedBy: 'admin', transactionId: txId }, { merge: true });
@@ -237,6 +278,31 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
     async function resolveBankUserRefByAccount(accountNo) {
       const qs = await db.collection('bankUsers').where('accountNumber', '==', String(accountNo)).limit(1).get();
       return qs.empty ? null : qs.docs[0].ref;
+    }
+
+    // Robust resolver: try by explicit account number, then by user's bank.uid mapping,
+    // then by bankUsers.uid==auth uid, then by email.
+    async function resolveBankUserRefFor(uid, accountNumber) {
+      if (accountNumber) {
+        const byAcct = await db.collection('bankUsers').where('accountNumber', '==', String(accountNumber)).limit(1).get();
+        if (!byAcct.empty) return byAcct.docs[0].ref;
+      }
+      const userDoc = await db.collection('users').doc(String(uid)).get();
+      const userAcct = userDoc.get('bank.accountNumber');
+      if (!accountNumber && userAcct) {
+        const byAcct2 = await db.collection('bankUsers').where('accountNumber', '==', String(userAcct)).limit(1).get();
+        if (!byAcct2.empty) return byAcct2.docs[0].ref;
+      }
+      const bUid = userDoc.get('bank.uid');
+      if (bUid) return db.collection('bankUsers').doc(String(bUid));
+      let q = await db.collection('bankUsers').where('uid', '==', String(uid)).limit(1).get();
+      if (!q.empty) return q.docs[0].ref;
+      const email = userDoc.get('email');
+      if (email) {
+        q = await db.collection('bankUsers').where('email', '==', email).limit(1).get();
+        if (!q.empty) return q.docs[0].ref;
+      }
+      return null;
     }
 
     async function handleVerifyDeposit() {
