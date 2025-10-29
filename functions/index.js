@@ -305,22 +305,52 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
       return null;
     }
 
+    async function resolveUidForAccount(accountNumber) {
+      if (!accountNumber) return null;
+      try {
+        // 1) Users mapping by bank.accountNumber
+        const uqs = await db
+          .collection('users')
+          .where('bank.accountNumber', '==', String(accountNumber))
+          .limit(1)
+          .get();
+        if (!uqs.empty) return uqs.docs[0].id;
+      } catch {}
+      try {
+        // 2) bankUsers mapping by accountNumber -> uid field
+        const bq = await db
+          .collection('bankUsers')
+          .where('accountNumber', '==', String(accountNumber))
+          .limit(1)
+          .get();
+        if (!bq.empty) {
+          const uid = bq.docs[0].get('uid') || null;
+          return uid || bq.docs[0].id; // fallback to doc id
+        }
+      } catch {}
+      return null;
+    }
+
     async function handleVerifyDeposit() {
       const id = String(body.depositId || '');
       if (!id) return res.status(400).json({ error: 'depositId required' });
       const depRef = db.collection('deposits').doc(id);
       let senderTxId = null;
       let receiverTxId = null;
+      logger.info('verifyDeposit: begin', { id });
 
       // Resolve receiver bank user ref OUTSIDE the transaction (by account number)
       // and sender bankUsers ref via sender's accountNumber so we can read the docs
-      // inside the transaction without additional queries.
+      // inside the transaction without additional queries. Also attempt to resolve
+      // receiver uid via users collection by bank.accountNumber as a fallback.
       const depOutside = await depRef.get();
       const depDataOutside = depOutside.data() || {};
       const accountNoOutside = depDataOutside.accountNo || depDataOutside.accountNumber || null;
       const senderUidOutside = depDataOutside.userId || null;
+      logger.info('verifyDeposit: loaded deposit outside', { accountNoOutside, senderUidOutside });
       let receiverBURefOutside = null;
       let senderBURefOutside = null;
+      let receiverUidOutside = null;
       if (senderUidOutside) {
         const senderUserOutsideRef = db.collection('users').doc(String(senderUidOutside));
         const senderUserOutsideSnap = await senderUserOutsideRef.get();
@@ -328,9 +358,12 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
         if (senderAcctOutside) {
           senderBURefOutside = await resolveBankUserRefByAccount(String(senderAcctOutside));
         }
+        logger.info('verifyDeposit: senderBURefOutside', { hasRef: !!senderBURefOutside, senderAcctOutside });
       }
       if (accountNoOutside) {
         receiverBURefOutside = await resolveBankUserRefByAccount(accountNoOutside);
+        receiverUidOutside = await resolveUidForAccount(accountNoOutside);
+        logger.info('verifyDeposit: receiver resolution outside', { hasBURef: !!receiverBURefOutside, receiverUidOutside });
       }
 
       await db.runTransaction(async (t) => {
@@ -344,6 +377,7 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
         const senderUid = d.userId || null;
         const accountNo = d.accountNo || d.accountNumber || null;
         if (!senderUid || !accountNo) throw new Error('missing_user_or_account');
+        logger.info('verifyDeposit: tx READS', { id, senderUid, accountNo, amount });
 
         const senderRef = db.collection('users').doc(senderUid);
         const senderSnap = await t.get(senderRef);
@@ -362,10 +396,14 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
         if (senderBURef) {
           senderBUSnap = await t.get(senderBURef);
         }
-        if (receiverBURef) {
+        // Prefer the pre-resolved receiverUidOutside if available
+        if (receiverUidOutside && receiverUidOutside !== senderUid) {
+          receiverUid = String(receiverUidOutside);
+        } else if (receiverBURef) {
           receiverBUSnap = await t.get(receiverBURef);
           receiverUid = receiverBUSnap.get('uid') || null;
         }
+        logger.info('verifyDeposit: receiver resolved', { receiverUid, hasReceiverBU: !!receiverBURef });
         if (receiverUid && receiverUid !== senderUid) {
           receiverRef = db.collection('users').doc(String(receiverUid));
           receiverSnap = await t.get(receiverRef);
@@ -389,6 +427,7 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
           processedByCF: true,
           details: { toAccount: accountNo, depositId: id },
         });
+        logger.info('verifyDeposit: sender tx prepared', { senderTxId, userId: senderUid, amount });
 
         // Receiver credit transaction (if resolved)
         if (receiverRef) {
@@ -404,6 +443,7 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
             processedByCF: true,
             details: { fromUser: senderUid, depositId: id, toAccount: accountNo },
           });
+          logger.info('verifyDeposit: receiver tx prepared', { receiverTxId, userId: receiverUid, amount });
         }
 
         // Update balances
@@ -412,20 +452,24 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
           { bank: { ...senderBank, balance: senderBal - amount } },
           { merge: true }
         );
+        logger.info('verifyDeposit: sender balance queued', { before: senderBal, after: senderBal - amount });
         if (receiverRef) {
           t.set(
             receiverRef,
             { bank: { ...receiverBank, balance: receiverBal + amount, accountNumber: receiverBank.accountNumber || accountNo } },
             { merge: true }
           );
+          logger.info('verifyDeposit: receiver balance queued', { before: receiverBal, after: receiverBal + amount });
         }
         if (receiverBURef && receiverBUSnap) {
           const rbuBal = Number((receiverBUSnap.get('balance') ?? 0)) || 0;
           t.set(receiverBURef, { balance: rbuBal + amount }, { merge: true });
+          logger.info('verifyDeposit: mirrored bankUsers receiver balance', { before: rbuBal, after: rbuBal + amount });
         }
         if (senderBURef && senderBUSnap) {
           const sbuBal = Number((senderBUSnap.get('balance') ?? 0)) || 0;
           t.set(senderBURef, { balance: sbuBal - amount }, { merge: true });
+          logger.info('verifyDeposit: mirrored bankUsers sender balance', { before: sbuBal, after: sbuBal - amount });
         }
 
         // Mark deposit verified
@@ -435,7 +479,57 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
           verifiedBy: 'admin',
           transactionId: receiverTxId || senderTxId,
         }, { merge: true });
+        logger.info('verifyDeposit: deposit marked verified', { id, transactionId: receiverTxId || senderTxId });
       });
+      // Outside transaction: fire-and-forget notifications
+      try {
+        const depSnapPost = await depRef.get();
+        const dPost = depSnapPost.data() || {};
+        const amountPost = Number(dPost.depositAmount || dPost.cashBreakdownTotal || 0);
+        const slipNoPost = dPost.slipNo || id;
+        const senderUidPost = dPost.userId;
+        // Sender notification
+        if (senderUidPost) {
+          await db.collection('users').doc(String(senderUidPost)).collection('notifications').add({
+            type: 'deposit_posted',
+            title: 'Deposit posted',
+            body: `Your deposit ${slipNoPost} was posted`,
+            amount: amountPost,
+            data: { depositId: id, slipNo: slipNoPost },
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            read: false,
+            toUid: String(senderUidPost),
+          });
+        }
+        // Receiver notification (if resolved in logs earlier)
+        try {
+          const txQ = await db.collection('transactions')
+            .where('details.depositId', '==', id)
+            .where('direction', '==', 'credit')
+            .limit(1)
+            .get();
+          if (!txQ.empty) {
+            const receiverUidPost = txQ.docs[0].get('userId');
+            if (receiverUidPost) {
+              await db.collection('users').doc(String(receiverUidPost)).collection('notifications').add({
+                type: 'deposit_received',
+                title: 'Deposit received',
+                body: `Cash deposit ${slipNoPost} credited`,
+                amount: amountPost,
+                data: { depositId: id, slipNo: slipNoPost },
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                read: false,
+                toUid: String(receiverUidPost),
+              });
+            }
+          }
+        } catch (e) {
+          logger.warn('verifyDeposit: receiver notification write failed', { err: e?.message || String(e) });
+        }
+      } catch (e) {
+        logger.warn('verifyDeposit: post-transaction notifications failed', { err: e?.message || String(e) });
+      }
+      logger.info('verifyDeposit: success', { id, senderTxId, receiverTxId });
       return res.status(200).json({ ok: true, id, senderTxId, receiverTxId });
     }
 
