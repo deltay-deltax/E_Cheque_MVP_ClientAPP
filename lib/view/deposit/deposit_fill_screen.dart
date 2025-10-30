@@ -6,6 +6,7 @@ import 'package:echeque_mvp/services/deposit_service.dart';
 import 'package:echeque_mvp/view/deposit/deposit_pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:echeque_mvp/view/transaction_pin/enter_pin_screen.dart';
+import 'package:echeque_mvp/localization/translation_provider.dart';
 
 class DepositSlipScreen extends StatelessWidget {
   const DepositSlipScreen({super.key});
@@ -16,10 +17,46 @@ class DepositSlipScreen extends StatelessWidget {
       create: (_) => DepositSlipViewModel(),
       child: Consumer<DepositSlipViewModel>(
         builder: (context, vm, _) {
+          final tp = context.read<TranslationProvider>();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            tp.translateVisible([
+              'Deposit Slip',
+              'View Deposits',
+              'Deposit Details',
+              'Select Date',
+              'Depositor Information',
+              'Enter Name',
+              'Enter Contact',
+              'Enter Address',
+              'Account Information',
+              'Enter Account Holder Name',
+              'Account No.',
+              'Savings',
+              'Current',
+              'Cash Breakdown',
+              'Denomination',
+              'Count',
+              'Total',
+              'Amount (auto)',
+              'Amount in Words',
+              'Purpose of Deposit',
+              'Own Account',
+              'Third Party',
+              'Loan',
+              'Others',
+              'Declaration',
+              'I agree to the terms and conditions',
+              'Create & Download (Customer)',
+              'Deposit created successfully',
+              'Deposits',
+              'No deposits',
+              'Deposit Preview',
+            ]);
+          });
           final slipNoController = TextEditingController(text: vm.slipNo);
           final slipDateController = TextEditingController(
             text: vm.slipDate == null
-                ? "Select Date"
+                ? tp.t('Select Date')
                 : "${vm.slipDate!.toLocal()}".split(' ')[0],
           );
           // using initialValue fields to prevent cursor jump issues
@@ -29,8 +66,8 @@ class DepositSlipScreen extends StatelessWidget {
             appBar: AppBar(
               backgroundColor: Color(0xFFF7F9FC),
               elevation: 0,
-              title: const Text(
-                "Deposit Slip",
+              title: Text(
+                tp.t('Deposit Slip'),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 22,
@@ -48,7 +85,7 @@ class DepositSlipScreen extends StatelessWidget {
                       ),
                     );
                   },
-                  child: const Text('View Deposits'),
+                  child: Text(tp.t('View Deposits')),
                 ),
               ],
             ),
@@ -57,7 +94,7 @@ class DepositSlipScreen extends StatelessWidget {
               children: [
                 // Deposit Details
                 _SectionCard(
-                  title: "Deposit Details",
+                  title: tp.t('Deposit Details'),
                   children: [
                     Row(
                       children: [
@@ -71,7 +108,7 @@ class DepositSlipScreen extends StatelessWidget {
                         SizedBox(width: 9),
                         Expanded(
                           child: DepositInputField(
-                            hint: "Select Date",
+                            hint: tp.t('Select Date'),
                             controller: slipDateController,
                             readOnly: true,
                           ),
@@ -82,22 +119,22 @@ class DepositSlipScreen extends StatelessWidget {
                 ),
 
                 _SectionCard(
-                  title: "Depositor Information",
+                  title: tp.t('Depositor Information'),
                   children: [
                     DepositInputField(
-                      hint: "Enter Name",
+                      hint: tp.t('Enter Name'),
                       initialValue: vm.depositorName,
                       onChanged: (v) => vm.setField(depositorName: v),
                     ),
                     SizedBox(height: 6),
                     DepositInputField(
-                      hint: "Enter Contact",
+                      hint: tp.t('Enter Contact'),
                       initialValue: vm.depositorContact,
                       onChanged: (v) => vm.setField(depositorContact: v),
                     ),
                     SizedBox(height: 6),
                     DepositInputField(
-                      hint: "Enter Address",
+                      hint: tp.t('Enter Address'),
                       initialValue: vm.depositorAddress,
                       onChanged: (v) => vm.setField(depositorAddress: v),
                     ),
@@ -105,27 +142,32 @@ class DepositSlipScreen extends StatelessWidget {
                 ),
 
                 _SectionCard(
-                  title: "Account Information",
+                  title: tp.t('Account Information'),
                   children: [
                     DepositInputField(
-                      hint: "Enter Account Holder Name",
+                      hint: tp.t('Enter Account Holder Name'),
                       initialValue: vm.accountHolderName,
                       onChanged: (v) => vm.setField(accountHolderName: v),
                     ),
                     SizedBox(height: 6),
                     DepositInputField(
-                      hint: "Account No.",
+                      hint: tp.t('Account No.'),
                       initialValue: vm.accountNo,
                       onChanged: (v) => vm.setField(accountNo: v),
                     ),
                     SizedBox(height: 6),
                     DropdownButtonFormField<String>(
                       value: vm.accountType,
-                      items: ["Savings", "Current"]
-                          .map(
-                            (s) => DropdownMenuItem(child: Text(s), value: s),
-                          )
-                          .toList(),
+                      items: [
+                        DropdownMenuItem<String>(
+                          value: 'Savings',
+                          child: Text(tp.t('Savings')),
+                        ),
+                        DropdownMenuItem<String>(
+                          value: 'Current',
+                          child: Text(tp.t('Current')),
+                        ),
+                      ],
                       decoration: InputDecoration(
                         filled: true,
                         fillColor: Color(0xFFF7F9FC),
@@ -138,27 +180,33 @@ class DepositSlipScreen extends StatelessWidget {
                           horizontal: 13,
                         ),
                       ),
-                      onChanged: (v) => vm.setAccountType(v ?? "Savings"),
+                      onChanged: (v) => vm.setAccountType(v ?? 'Savings'),
                     ),
                   ],
                 ),
 
                 _SectionCard(
-                  title: "Cash Breakdown",
+                  title: tp.t('Cash Breakdown'),
                   children: [
                     Row(
                       children: [
                         Expanded(
                           child: Text(
-                            "Denomination",
+                            tp.t('Denomination'),
                             style: TextStyle(fontSize: 15),
                           ),
                         ),
                         Expanded(
-                          child: Text("Count", style: TextStyle(fontSize: 15)),
+                          child: Text(
+                            tp.t('Count'),
+                            style: TextStyle(fontSize: 15),
+                          ),
                         ),
                         Expanded(
-                          child: Text("Total", style: TextStyle(fontSize: 15)),
+                          child: Text(
+                            tp.t('Total'),
+                            style: TextStyle(fontSize: 15),
+                          ),
                         ),
                       ],
                     ),
@@ -200,10 +248,10 @@ class DepositSlipScreen extends StatelessWidget {
                 ),
 
                 _SectionCard(
-                  title: "Deposit Amount in Figures",
+                  title: tp.t('Deposit Amount in Figures'),
                   children: [
                     DepositInputField(
-                      hint: "Amount (auto)",
+                      hint: tp.t('Amount (auto)'),
                       controller: TextEditingController(
                         text: vm.cashBreakdownTotal.toStringAsFixed(2),
                       ),
@@ -211,7 +259,7 @@ class DepositSlipScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 5),
                     DepositInputField(
-                      hint: "Amount in Words",
+                      hint: tp.t('Amount in Words'),
                       controller: TextEditingController(text: vm.amountInWords),
                       readOnly: true,
                       maxLines: 2,
@@ -220,14 +268,17 @@ class DepositSlipScreen extends StatelessWidget {
                 ),
 
                 _SectionCard(
-                  title: "Purpose of Deposit",
+                  title: tp.t('Purpose of Deposit'),
                   children: [
                     ...vm.depositPurposeOptions.map(
                       (label) => CheckboxListTile(
                         dense: true,
                         value: vm.selectedPurposes.contains(label),
                         onChanged: (v) => vm.selectPurpose(label),
-                        title: Text(label, style: TextStyle(fontSize: 15)),
+                        title: Text(
+                          tp.t(label),
+                          style: TextStyle(fontSize: 15),
+                        ),
                         controlAffinity: ListTileControlAffinity.leading,
                       ),
                     ),
@@ -235,12 +286,12 @@ class DepositSlipScreen extends StatelessWidget {
                 ),
 
                 _SectionCard(
-                  title: "Declaration",
+                  title: tp.t('Declaration'),
                   children: [
                     Row(
                       children: [
                         Text(
-                          "I agree to the terms and conditions",
+                          tp.t('I agree to the terms and conditions'),
                           style: TextStyle(fontSize: 15),
                         ),
                         Spacer(),
@@ -264,7 +315,9 @@ class DepositSlipScreen extends StatelessWidget {
                     child: ElevatedButton(
                       onPressed: () async {
                         final pin = await Navigator.of(context).push<String>(
-                          MaterialPageRoute(builder: (_) => const EnterPinScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const EnterPinScreen(),
+                          ),
                         );
                         if (pin == null || pin.trim().length < 4) return;
                         final data = {
@@ -292,10 +345,16 @@ class DepositSlipScreen extends StatelessWidget {
                         vm.reset();
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Deposit created successfully')),
+                            SnackBar(
+                              content: Text(
+                                tp.t('Deposit created successfully'),
+                              ),
+                            ),
                           );
                           Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const DepositListScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const DepositListScreen(),
+                            ),
                           );
                         }
                       },
@@ -306,7 +365,7 @@ class DepositSlipScreen extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        "Create & Download (Customer)",
+                        tp.t('Create & Download (Customer)'),
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -332,7 +391,9 @@ class DepositPdfPreviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Deposit Preview')),
+      appBar: AppBar(
+        title: Text(context.read<TranslationProvider>().t('Deposit Preview')),
+      ),
       body: PdfPreview(
         build: (format) => DepositPdf.build(data, bankCopy: false),
         canChangeOrientation: false,
@@ -348,14 +409,19 @@ class DepositListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Deposits')),
+      appBar: AppBar(
+        title: Text(context.read<TranslationProvider>().t('Deposits')),
+      ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: DepositService.instance.streamUserDeposits(),
         builder: (context, snap) {
           if (!snap.hasData)
             return const Center(child: CircularProgressIndicator());
           final items = snap.data!;
-          if (items.isEmpty) return const Center(child: Text('No deposits'));
+          if (items.isEmpty)
+            return Center(
+              child: Text(context.read<TranslationProvider>().t('No deposits')),
+            );
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
@@ -367,14 +433,19 @@ class DepositListScreen extends StatelessWidget {
                 subtitle: Text((d['slipDate'] as String?) ?? ''),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => DepositPdfPreviewScreen(data: d)),
+                    MaterialPageRoute(
+                      builder: (_) => DepositPdfPreviewScreen(data: d),
+                    ),
                   );
                 },
                 trailing: IconButton(
                   icon: const Icon(Icons.share),
                   onPressed: () async {
                     final bytes = await DepositPdf.build(d, bankCopy: false);
-                    await Printing.sharePdf(bytes: bytes, filename: '${title}-customer.pdf');
+                    await Printing.sharePdf(
+                      bytes: bytes,
+                      filename: '${title}-customer.pdf',
+                    );
                   },
                 ),
               );

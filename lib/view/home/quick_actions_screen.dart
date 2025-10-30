@@ -4,6 +4,9 @@ import 'package:echeque_mvp/view/deposit/deposit_fill_screen.dart';
 import 'package:echeque_mvp/view/receipt/receipt_fill_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:echeque_mvp/view/portfolio/portfolio_screen.dart';
+import 'package:echeque_mvp/view/confirmation/confirmation_screen.dart';
+import 'package:echeque_mvp/view/elearning/e_learning_screen.dart';
 import '../../view_model/quick_actions_view_model.dart';
 
 class QuickActionsScreen extends StatelessWidget {
@@ -21,7 +24,7 @@ class QuickActionsScreen extends StatelessWidget {
             elevation: 0,
             leading: BackButton(color: Colors.black),
             title: Text(
-              "Quick Actions",
+              'Quick Actions',
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,
@@ -67,6 +70,24 @@ class QuickActionsScreen extends StatelessWidget {
                       Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => const ReceiptSlipScreen(),
+                        ),
+                      );
+                    } else if (a.title.toLowerCase().contains('confirmation')) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ConfirmationScreen(),
+                        ),
+                      );
+                    } else if (a.title.toLowerCase().contains('portfolio')) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const PortfolioScreen(),
+                        ),
+                      );
+                    } else if (a.title.toLowerCase().contains('learning')) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ELearningScreen(),
                         ),
                       );
                     }

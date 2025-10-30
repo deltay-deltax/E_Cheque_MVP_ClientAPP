@@ -73,6 +73,22 @@ class ChequeService {
 
       return newChequeRef.id;
     });
+    // Notify issuer (sender) that cheque was created/sent
+    try {
+      final amt = double.tryParse(amount) ?? 0.0;
+      await NotificationService.instance.send(
+        toUid: uid,
+        type: 'cheque_sent',
+        title: 'Cheque sent',
+        body: 'You sent cheque #$chequeNoVal for ₹$amt',
+        amount: amt,
+        occurredAt: date,
+        data: {
+          'chequeId': newId,
+          'chequeNo': chequeNoVal,
+        },
+      );
+    } catch (_) {}
     // Mirror to receiver inbox if resolved and not self
     if (resolvedReceiverUid != null && resolvedReceiverUid != uid) {
       final inboxRef = _userDoc(resolvedReceiverUid).collection('inboxCheques').doc(newId);

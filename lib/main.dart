@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/routes/app_routes.dart';
 import 'view_model/splash_view_model.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'services/key.dart';
-import 'localization/localization_provider.dart';
-import 'localization/l10n.dart';
+import 'localization/translation_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -37,25 +35,39 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SplashViewModel()),
-        ChangeNotifierProvider(create: (_) => LocalizationProvider()..load()),
+        ChangeNotifierProvider(create: (_) => TranslationProvider()..init()),
       ],
-      child: Consumer<LocalizationProvider>(
-        builder: (context, lp, _) => MaterialApp(
+      child: Consumer<TranslationProvider>(
+        builder: (context, tp, _) => MaterialApp(
           debugShowCheckedModeBanner: false,
-          title: L10n.tr(lp.code, 'app_name'),
-          locale: lp.locale,
-          supportedLocales: L10n.supportedLocales,
-          localizationsDelegates: const [
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
+          title: tp.t('E-Cheque'),
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
             useMaterial3: true,
           ),
           initialRoute: AppRoutes.initialRoute,
           onGenerateRoute: AppRoutes.onGenerateRoute,
+          builder: (ctx, child) {
+            // Global loader overlay + error snackbar for translations
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              final err = context.read<TranslationProvider>().error;
+              if (err != null && err.isNotEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  SnackBar(content: Text('Translation error: $err')),
+                );
+              }
+            });
+            return Stack(
+              children: [
+                if (child != null) child,
+                if (context.watch<TranslationProvider>().loading)
+                  Container(
+                    color: Colors.black.withOpacity(0.2),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:echeque_mvp/view/widgets/transaction_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../view_model/transactions_view_model.dart';
+import 'package:echeque_mvp/localization/translation_provider.dart';
 
 class TransactionsScreen extends StatelessWidget {
   const TransactionsScreen({super.key});
@@ -16,8 +17,8 @@ class TransactionsScreen extends StatelessWidget {
           appBar: AppBar(
             backgroundColor: const Color(0xFFF7F9FC),
             elevation: 0,
-            title: const Text(
-              "Transactions",
+            title: Text(
+              context.read<TranslationProvider>().t('Transactions'),
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 29,
@@ -39,7 +40,7 @@ class TransactionsScreen extends StatelessWidget {
               const SizedBox(height: 10),
               TextField(
                 decoration: InputDecoration(
-                  hintText: "Search transactions...",
+                  hintText: context.read<TranslationProvider>().t('Search transactions...'),
                   prefixIcon: const Icon(
                     Icons.search,
                     color: Color(0xFF818181),
@@ -60,22 +61,22 @@ class TransactionsScreen extends StatelessWidget {
                   scrollDirection: Axis.horizontal,
                   children: [
                     _FilterChip(
-                      text: "All",
+                      text: context.read<TranslationProvider>().t('All'),
                       isSelected: vm.selectedType == TransactionType.all,
                       onTap: () => vm.setType(TransactionType.all),
                     ),
                     _FilterChip(
-                      text: "Income",
+                      text: context.read<TranslationProvider>().t('Income'),
                       isSelected: vm.selectedType == TransactionType.income,
                       onTap: () => vm.setType(TransactionType.income),
                     ),
                     _FilterChip(
-                      text: "Expense",
+                      text: context.read<TranslationProvider>().t('Expense'),
                       isSelected: vm.selectedType == TransactionType.expense,
                       onTap: () => vm.setType(TransactionType.expense),
                     ),
                     _FilterChip(
-                      text: "Pending",
+                      text: context.read<TranslationProvider>().t('Pending'),
                       isSelected: vm.selectedType == TransactionType.pending,
                       onTap: () => vm.setType(TransactionType.pending),
                     ),
@@ -87,7 +88,7 @@ class TransactionsScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "${vm.filteredTransactions.length} transactions",
+                    "${vm.filteredTransactions.length} " + context.read<TranslationProvider>().t('transactions'),
                     style: const TextStyle(
                       color: Color(0xFF6B7280),
                       fontSize: 13,
@@ -108,9 +109,9 @@ class TransactionsScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   alignment: Alignment.center,
-                  child: const Text(
-                    'No transactions',
-                    style: TextStyle(color: Color(0xFF6B7280)),
+                  child: Text(
+                    context.read<TranslationProvider>().t('No transactions'),
+                    style: const TextStyle(color: Color(0xFF6B7280)),
                   ),
                 )
               else

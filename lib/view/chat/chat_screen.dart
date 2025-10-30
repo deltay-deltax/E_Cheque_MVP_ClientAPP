@@ -15,14 +15,14 @@ class ChatMessage {
   final String text;
   final int ts; // epoch millis
   ChatMessage({required this.sender, required this.text, int? ts})
-      : ts = ts ?? DateTime.now().millisecondsSinceEpoch;
+    : ts = ts ?? DateTime.now().millisecondsSinceEpoch;
 
   Map<String, dynamic> toMap() => {'sender': sender, 'text': text, 'ts': ts};
   factory ChatMessage.fromMap(Map map) => ChatMessage(
-        sender: map['sender'],
-        text: map['text'],
-        ts: (map['ts'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
-      );
+    sender: map['sender'],
+    text: map['text'],
+    ts: (map['ts'] as int?) ?? DateTime.now().millisecondsSinceEpoch,
+  );
 }
 
 class _WaveBars extends StatelessWidget {
@@ -334,7 +334,9 @@ class _ChatScreenState extends State<ChatScreen> {
             (data['note'] as String?) ??
             (data['source'] as String? ?? 'Transaction');
         final sign = incoming ? '+' : '-';
-        lines.add('$sign₹${amount.toStringAsFixed(2)} ${incoming ? 'Income' : 'Expense'} (${note})');
+        lines.add(
+          '$sign₹${amount.toStringAsFixed(2)} ${incoming ? 'Income' : 'Expense'} (${note})',
+        );
       }
       final ai = ChatMessage(
         sender: 'ai',
@@ -507,298 +509,317 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Column(
             children: [
-          Container(
-            width: double.infinity,
-            color: AppColors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _QuickChip(
-                    label: 'Total Balance',
-                    icon: Icons.account_balance_wallet_outlined,
-                    onTap: () async {
-                      await _chipTotalBalance();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Show Statement',
-                    icon: Icons.receipt_long,
-                    onTap: () {
-                      final userQ = ChatMessage(
-                        sender: 'user',
-                        text: 'Show my latest bank statement.',
-                      );
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text:
-                            'Last 5 entries:\n1) -₹4000 Expense (House)\n2) -₹200 Mobile Money\n3) +₹10000 Salary\n4) -₹150 Food & Drink\n5) -₹250 Travel',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Last 3 Transactions',
-                    icon: Icons.history,
-                    onTap: () async {
-                      await _chipLast3();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Spending This Month',
-                    icon: Icons.pie_chart_outline,
-                    onTap: () async {
-                      await _chipSpendingThisMonth();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Income vs Expense',
-                    icon: Icons.trending_up,
-                    onTap: () {
-                      final userQ = ChatMessage(
-                        sender: 'user',
-                        text: 'Compare my income vs expenses for this month.',
-                      );
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text:
-                            'Income: ₹10,000\nExpense: ₹4,400\nNet: +₹5,600\n\nChart:\nIncome  ██████████\nExpense ████',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Show Categories',
-                    icon: Icons.category_outlined,
-                    onTap: () async {
-                      await _chipShowCategories();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Set Budget',
-                    icon: Icons.account_balance,
-                    onTap: () {
-                      final userQ = ChatMessage(
-                        sender: 'user',
-                        text: 'Help me set a monthly budget.',
-                      );
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text:
-                            'Suggested budget: ₹8,000 monthly.\nSplit:\n- Essentials ₹5,000\n- Discretionary ₹2,000\n- Savings ₹1,000',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
-                    },
-                  ),
-                  _QuickChip(
-                    label: 'Help',
-                    icon: Icons.help_outline,
-                    onTap: () {
-                      final userQ = ChatMessage(
-                        sender: 'user',
-                        text: 'What can you do?',
-                      );
-                      messages.add(userQ);
-                      chatBox.add(userQ.toMap());
-                      final ai = ChatMessage(
-                        sender: 'ai',
-                        text:
-                            'I can summarize your balances, recent transactions, category spend, and help with budgeting. Tap any chip above to try!',
-                      );
-                      messages.add(ai);
-                      chatBox.add(ai.toMap());
-                      setState(() {});
-                      _scrollToBottom();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(20),
-              itemCount: messages.length + (_aiTyping ? 1 : 0),
-              itemBuilder: (context, idx) {
-                if (_aiTyping && idx == messages.length) {
-                  // Typing bubble on AI side
-                  return Align(
-                    alignment: Alignment.centerLeft,
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 13,
-                        horizontal: 18,
-                      ),
-                      decoration: BoxDecoration(
-                        color: aiBubble,
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(20),
-                          topRight: Radius.circular(20),
-                          bottomRight: Radius.circular(16),
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12.withOpacity(0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: _TypingDots(phase: _typingPhase),
-                    ),
-                  );
-                }
-                bool isUser = messages[idx].sender == "user";
-                return Align(
-                  alignment: isUser
-                      ? Alignment.centerRight
-                      : Alignment.centerLeft,
-                  child: Container(
-                    margin: EdgeInsets.symmetric(vertical: 6),
-                    padding: EdgeInsets.symmetric(vertical: 13, horizontal: 18),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isUser ? userBubble : aiBubble,
-                      borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                        bottomLeft: Radius.circular(isUser ? 16 : 0),
-                        bottomRight: Radius.circular(isUser ? 0 : 16),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black12.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Text(
-                      messages[idx].text,
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: isUser ? Colors.white : AppColors.darkText,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              border: const Border(
-                top: BorderSide(color: AppColors.grey200, width: 1),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12.withOpacity(0.06),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+              Container(
+                width: double.infinity,
+                color: AppColors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: controller,
-                    style: const TextStyle(fontSize: 16, color: Colors.black),
-                    decoration: InputDecoration(
-                      hintText: 'Type your message...',
-                      hintStyle: const TextStyle(color: AppColors.grey600),
-                      filled: true,
-                      fillColor: AppColors.grey100,
-                      contentPadding: EdgeInsets.symmetric(
-                        vertical: 13,
-                        horizontal: 16,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _QuickChip(
+                        label: 'Total Balance',
+                        icon: Icons.account_balance_wallet_outlined,
+                        onTap: () async {
+                          await _chipTotalBalance();
+                        },
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: AppColors.grey200,
-                          width: 1,
-                        ),
+                      _QuickChip(
+                        label: 'Show Statement',
+                        icon: Icons.receipt_long,
+                        onTap: () {
+                          final userQ = ChatMessage(
+                            sender: 'user',
+                            text: 'Show my latest bank statement.',
+                          );
+                          messages.add(userQ);
+                          chatBox.add(userQ.toMap());
+                          final ai = ChatMessage(
+                            sender: 'ai',
+                            text:
+                                'Last 5 entries:\n1) -₹4000 Expense (House)\n2) -₹200 Mobile Money\n3) +₹10000 Salary\n4) -₹150 Food & Drink\n5) -₹250 Travel',
+                          );
+                          messages.add(ai);
+                          chatBox.add(ai.toMap());
+                          setState(() {});
+                          _scrollToBottom();
+                        },
                       ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide(
-                          color: AppColors.primaryBlue,
-                          width: 1.5,
-                        ),
+                      _QuickChip(
+                        label: 'Last 3 Transactions',
+                        icon: Icons.history,
+                        onTap: () async {
+                          await _chipLast3();
+                        },
                       ),
-                    ),
-                    onSubmitted: (value) {
-                      if (value.trim().isNotEmpty) {
-                        sendMessage(value.trim());
-                        controller.clear();
-                      }
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: _listening ? Colors.redAccent : AppColors.grey200,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: IconButton(
-                    tooltip: _listening ? 'Stop' : 'Speak',
-                    icon: Icon(
-                      _listening ? Icons.mic_off : Icons.mic,
-                      color: _listening ? Colors.white : AppColors.darkText,
-                    ),
-                    onPressed: _toggleMic,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black12.withOpacity(0.10),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
+                      _QuickChip(
+                        label: 'Spending This Month',
+                        icon: Icons.pie_chart_outline,
+                        onTap: () async {
+                          await _chipSpendingThisMonth();
+                        },
+                      ),
+                      _QuickChip(
+                        label: 'Income vs Expense',
+                        icon: Icons.trending_up,
+                        onTap: () {
+                          final userQ = ChatMessage(
+                            sender: 'user',
+                            text:
+                                'Compare my income vs expenses for this month.',
+                          );
+                          messages.add(userQ);
+                          chatBox.add(userQ.toMap());
+                          final ai = ChatMessage(
+                            sender: 'ai',
+                            text:
+                                'Income: ₹10,000\nExpense: ₹4,400\nNet: +₹5,600\n\nChart:\nIncome  ██████████\nExpense ████',
+                          );
+                          messages.add(ai);
+                          chatBox.add(ai.toMap());
+                          setState(() {});
+                          _scrollToBottom();
+                        },
+                      ),
+                      _QuickChip(
+                        label: 'Show Categories',
+                        icon: Icons.category_outlined,
+                        onTap: () async {
+                          await _chipShowCategories();
+                        },
+                      ),
+                      _QuickChip(
+                        label: 'Set Budget',
+                        icon: Icons.account_balance,
+                        onTap: () {
+                          final userQ = ChatMessage(
+                            sender: 'user',
+                            text: 'Help me set a monthly budget.',
+                          );
+                          messages.add(userQ);
+                          chatBox.add(userQ.toMap());
+                          final ai = ChatMessage(
+                            sender: 'ai',
+                            text:
+                                'Suggested budget: ₹8,000 monthly.\nSplit:\n- Essentials ₹5,000\n- Discretionary ₹2,000\n- Savings ₹1,000',
+                          );
+                          messages.add(ai);
+                          chatBox.add(ai.toMap());
+                          setState(() {});
+                          _scrollToBottom();
+                        },
+                      ),
+                      _QuickChip(
+                        label: 'Help',
+                        icon: Icons.help_outline,
+                        onTap: () {
+                          final userQ = ChatMessage(
+                            sender: 'user',
+                            text: 'What can you do?',
+                          );
+                          messages.add(userQ);
+                          chatBox.add(userQ.toMap());
+                          final ai = ChatMessage(
+                            sender: 'ai',
+                            text:
+                                'I can summarize your balances, recent transactions, category spend, and help with budgeting. Tap any chip above to try!',
+                          );
+                          messages.add(ai);
+                          chatBox.add(ai.toMap());
+                          setState(() {});
+                          _scrollToBottom();
+                        },
                       ),
                     ],
                   ),
-                  child: IconButton(
-                    icon: const Icon(Icons.send, color: Colors.white, size: 26),
-                    onPressed: () {
-                      if (controller.text.trim().isNotEmpty) {
-                        sendMessage(controller.text.trim());
-                        controller.clear();
-                      }
-                    },
-                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(20),
+                  itemCount: messages.length + (_aiTyping ? 1 : 0),
+                  itemBuilder: (context, idx) {
+                    if (_aiTyping && idx == messages.length) {
+                      // Typing bubble on AI side
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 13,
+                            horizontal: 18,
+                          ),
+                          decoration: BoxDecoration(
+                            color: aiBubble,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                              bottomRight: Radius.circular(16),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: _TypingDots(phase: _typingPhase),
+                        ),
+                      );
+                    }
+                    bool isUser = messages[idx].sender == "user";
+                    return Align(
+                      alignment: isUser
+                          ? Alignment.centerRight
+                          : Alignment.centerLeft,
+                      child: Container(
+                        margin: EdgeInsets.symmetric(vertical: 6),
+                        padding: EdgeInsets.symmetric(
+                          vertical: 13,
+                          horizontal: 18,
+                        ),
+                        constraints: BoxConstraints(
+                          maxWidth: MediaQuery.of(context).size.width * 0.8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isUser ? userBubble : aiBubble,
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                            bottomLeft: Radius.circular(isUser ? 16 : 0),
+                            bottomRight: Radius.circular(isUser ? 0 : 16),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black12.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          messages[idx].text,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: isUser ? Colors.white : AppColors.darkText,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  border: const Border(
+                    top: BorderSide(color: AppColors.grey200, width: 1),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12.withOpacity(0.06),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: controller,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.black,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Type your message...',
+                          hintStyle: const TextStyle(color: AppColors.grey600),
+                          filled: true,
+                          fillColor: AppColors.grey100,
+                          contentPadding: EdgeInsets.symmetric(
+                            vertical: 13,
+                            horizontal: 16,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: AppColors.grey200,
+                              width: 1,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide(
+                              color: AppColors.primaryBlue,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                        onSubmitted: (value) {
+                          if (value.trim().isNotEmpty) {
+                            sendMessage(value.trim());
+                            controller.clear();
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: _listening
+                            ? Colors.redAccent
+                            : AppColors.grey200,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: IconButton(
+                        tooltip: _listening ? 'Stop' : 'Speak',
+                        icon: Icon(
+                          _listening ? Icons.mic_off : Icons.mic,
+                          color: _listening ? Colors.white : AppColors.darkText,
+                        ),
+                        onPressed: _toggleMic,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryBlue,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12.withOpacity(0.10),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        icon: const Icon(
+                          Icons.send,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        onPressed: () {
+                          if (controller.text.trim().isNotEmpty) {
+                            sendMessage(controller.text.trim());
+                            controller.clear();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
           if (_speechOpen)
@@ -826,8 +847,13 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            _listening ? 'Listening…' : (_speechFinal ? 'Preview' : 'Processing…'),
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            _listening
+                                ? 'Listening…'
+                                : (_speechFinal ? 'Preview' : 'Processing…'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         IconButton(
@@ -839,7 +865,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             });
                           },
                           icon: const Icon(Icons.close),
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 8),
@@ -865,7 +891,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: () async {
-                              try { await _stt.stop(); } catch (_) {}
+                              try {
+                                await _stt.stop();
+                              } catch (_) {}
                               setState(() {
                                 _listening = false;
                                 _speechOpen = false;
@@ -895,7 +923,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),

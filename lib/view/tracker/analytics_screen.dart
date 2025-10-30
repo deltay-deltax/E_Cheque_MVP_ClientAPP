@@ -1,7 +1,7 @@
 import 'package:echeque_mvp/view/widgets/analytics_category_card.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../auth/bank_link_guard.dart';
+import 'package:echeque_mvp/localization/translation_provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../view_model/analytics_view_model.dart';
 import '../../view_model/transactions_view_model.dart';
@@ -15,551 +15,572 @@ class AnalyticsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BankLinkGuard(
-      child: MultiProvider(
-        providers: [
-          ChangeNotifierProvider(create: (_) => AnalyticsViewModel()),
-          ChangeNotifierProvider(create: (_) => TransactionsViewModel()),
-        ],
-        child: Consumer2<AnalyticsViewModel, TransactionsViewModel>(
-          builder: (context, analyticsVm, txVm, _) {
-            return DefaultTabController(
-              length: 3,
-              child: Scaffold(
-                backgroundColor: const Color(0xFFF7F9FC),
-                appBar: AppBar(
-                  backgroundColor: AppColors.primaryBlue,
-                  elevation: 0,
-                  title: const Padding(
-                    padding: EdgeInsets.only(left: 7, top: 7),
-                    child: Text(
-                      "Analytics",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 24,
-                        color: Colors.black87,
-                        letterSpacing: -.7,
-                      ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AnalyticsViewModel()),
+        ChangeNotifierProvider(create: (_) => TransactionsViewModel()),
+      ],
+      child: Consumer2<AnalyticsViewModel, TransactionsViewModel>(
+        builder: (context, analyticsVm, txVm, _) {
+          // Prefetch common visible strings for quicker switching
+          final tp = context.read<TranslationProvider>();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            tp.translateVisible([
+              'Analytics',
+              'Insights',
+              'Payees',
+              'Transactions',
+              'Total Transactions',
+              'This month',
+              'No data found',
+              'No payees',
+              'Search transactions... ',
+              'All',
+              'Income',
+              'Expense',
+              'Pending',
+              'transactions',
+              'All Transactions',
+              'No transactions found',
+              'Home',
+              'Chat',
+              'Analytics',
+              'Profile',
+            ]);
+          });
+          return DefaultTabController(
+            length: 3,
+            child: Scaffold(
+              backgroundColor: const Color(0xFFF7F9FC),
+              appBar: AppBar(
+                backgroundColor: AppColors.primaryBlue,
+                elevation: 0,
+                title: Padding(
+                  padding: EdgeInsets.only(left: 7, top: 7),
+                  child: Text(
+                    tp.t('Analytics'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 24,
+                      color: Colors.black87,
+                      letterSpacing: -.7,
                     ),
-                  ),
-                  actions: const [
-                    Padding(
-                      padding: EdgeInsets.only(right: 16.0),
-                      child: Icon(
-                        Icons.notifications,
-                        color: Colors.black87,
-                        size: 24,
-                      ),
-                    ),
-                  ],
-                  bottom: const TabBar(
-                    labelColor: Colors.black,
-                    unselectedLabelColor: Colors.black54,
-                    indicatorColor: Colors.black,
-                    tabs: [
-                      Tab(text: 'Insights'),
-                      Tab(text: 'Payees'),
-                      Tab(text: 'Transactions'),
-                    ],
                   ),
                 ),
+                actions: const [
+                  Padding(
+                    padding: EdgeInsets.only(right: 16.0),
+                    child: Icon(
+                      Icons.notifications,
+                      color: Colors.black87,
+                      size: 24,
+                    ),
+                  ),
+                ],
+                bottom: TabBar(
+                  labelColor: Colors.black,
+                  unselectedLabelColor: Colors.black54,
+                  indicatorColor: Colors.black,
+                  tabs: [
+                    Tab(text: tp.t('Insights')),
+                    Tab(text: tp.t('Payees')),
+                    Tab(text: tp.t('Transactions')),
+                  ],
+                ),
+              ),
 
-                // ------------------ Body ------------------
-                body: TabBarView(
-                  children: [
-                    // ------------------ INSIGHTS TAB ------------------
-                    ListView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      children: [
-                        // Top transaction summary card
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Total Transactions",
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey[500],
-                                    ),
-                                  ),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        "₹${analyticsVm.monthSpendTotal.toStringAsFixed(2)}",
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 22,
-                                          color: Colors.black,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      const Padding(
-                                        padding: EdgeInsets.only(bottom: 5),
-                                        child: Icon(
-                                          Icons.arrow_upward,
-                                          size: 16,
-                                          color: AppColors.primaryGreen,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              SizedBox(
-                                height: 32,
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    value: analyticsVm.monthIdx,
-                                    icon: const Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 18,
-                                      color: Colors.grey,
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      color: Colors.grey[700],
-                                    ),
-                                    items: List.generate(
-                                      analyticsVm.months.length,
-                                      (i) => DropdownMenuItem(
-                                        value: i,
-                                        child: Text(
-                                          i == analyticsVm.currentMonthIndex
-                                              ? 'This month'
-                                              : analyticsVm.months[i],
-                                        ),
-                                      ),
-                                    ),
-                                    onChanged: (i) {
-                                      if (i != null) {
-                                        analyticsVm.setMonth(i);
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Analytics content: always show categories (defaults appear with 0 before any transactions)
-                        ...[
-                          SizedBox(
-                            height: 200,
-                            child: Builder(
-                              builder: (_) {
-                                final cats = analyticsVm.categories;
-                                final values = cats
-                                    .map((c) => c.amount.toDouble())
-                                    .toList();
-                                final colors = cats
-                                    .map((c) => c.color)
-                                    .toList();
-                                return CustomPaint(
-                                  painter: PieChartPainter(
-                                    values: values,
-                                    colors: colors,
-                                  ),
-                                );
-                              },
+              // ------------------ Body ------------------
+              body: TabBarView(
+                children: [
+                  // ------------------ INSIGHTS TAB ------------------
+                  ListView(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    children: [
+                      // Top transaction summary card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 3),
                             ),
-                          ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: analyticsVm.categories.map((c) {
-                              return Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 6,
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tp.t('Total Transactions'),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(14),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x11000000),
-                                      blurRadius: 6,
-                                      offset: Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Container(
-                                      width: 10,
-                                      height: 10,
-                                      decoration: BoxDecoration(
-                                        color: c.color,
-                                        shape: BoxShape.circle,
+                                    Text(
+                                      "₹${analyticsVm.monthSpendTotal.toStringAsFixed(2)}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        fontSize: 22,
+                                        color: Colors.black,
                                       ),
                                     ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${c.label} • ${c.percent}% • ₹${c.amount}',
+                                    const SizedBox(width: 8),
+                                    const Padding(
+                                      padding: EdgeInsets.only(bottom: 5),
+                                      child: Icon(
+                                        Icons.arrow_upward,
+                                        size: 16,
+                                        color: AppColors.primaryGreen,
+                                      ),
                                     ),
                                   ],
+                                ),
+                              ],
+                            ),
+                            SizedBox(
+                              height: 32,
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<int>(
+                                  value: analyticsVm.monthIdx,
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    size: 18,
+                                    color: Colors.grey,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[700],
+                                  ),
+                                  items: List.generate(
+                                    analyticsVm.months.length,
+                                    (i) => DropdownMenuItem(
+                                      value: i,
+                                      child: Text(
+                                        i == analyticsVm.currentMonthIndex
+                                            ? tp.t('This month')
+                                            : analyticsVm.months[i],
+                                      ),
+                                    ),
+                                  ),
+                                  onChanged: (i) {
+                                    if (i != null) {
+                                      analyticsVm.setMonth(i);
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Analytics content: always show categories (defaults appear with 0 before any transactions)
+                      ...[
+                        SizedBox(
+                          height: 200,
+                          child: Builder(
+                            builder: (_) {
+                              final cats = analyticsVm.categories;
+                              final values = cats
+                                  .map((c) => c.amount.toDouble())
+                                  .toList();
+                              final colors = cats.map((c) => c.color).toList();
+                              return CustomPaint(
+                                painter: PieChartPainter(
+                                  values: values,
+                                  colors: colors,
                                 ),
                               );
-                            }).toList(),
+                            },
                           ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Column(
-                              children: analyticsVm.categories
-                                  .map((cat) => AnalyticsCategoryCard(cat: cat))
-                                  .toList(),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-
-                    // ------------------ PAYEES TAB ------------------
-                    Builder(
-                      builder: (_) {
-                        if (!analyticsVm.hasDataForMonth) {
-                          return const Center(
-                            child: Text(
-                              'No data found',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-                        final entries = analyticsVm.payeeTotals.entries.toList()
-                          ..sort((a, b) => b.value.compareTo(a.value));
-                        if (entries.isEmpty) {
-                          return const Center(
-                            child: Text(
-                              'No payees',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          );
-                        }
-                        return ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: analyticsVm.categories.map((c) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
+                                borderRadius: BorderRadius.circular(14),
+                                boxShadow: const [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
+                                    color: Color(0x11000000),
                                     blurRadius: 6,
-                                    offset: const Offset(0, 3),
+                                    offset: Offset(0, 2),
                                   ),
                                 ],
                               ),
                               child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Total Transactions",
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[500],
-                                        ),
-                                      ),
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          Text(
-                                            "₹${analyticsVm.monthSpendTotal.toStringAsFixed(2)}",
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 22,
-                                              color: Colors.black,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          const Padding(
-                                            padding: EdgeInsets.only(bottom: 5),
-                                            child: Icon(
-                                              Icons.arrow_upward,
-                                              size: 16,
-                                              color: AppColors.primaryGreen,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(
-                                    height: 52,
-                                    child: DropdownButtonHideUnderline(
-                                      child: DropdownButton<int>(
-                                        value: analyticsVm.monthIdx,
-                                        icon: const Icon(
-                                          Icons.keyboard_arrow_down,
-                                          size: 18,
-                                          color: Colors.grey,
-                                        ),
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: Colors.grey[700],
-                                        ),
-                                        items: List.generate(
-                                          analyticsVm.months.length,
-                                          (i) => DropdownMenuItem(
-                                            value: i,
-                                            child: Text(
-                                              i == analyticsVm.currentMonthIndex
-                                                  ? 'This month'
-                                                  : analyticsVm.months[i],
-                                            ),
-                                          ),
-                                        ),
-                                        onChanged: (i) {
-                                          if (i != null) {
-                                            analyticsVm.setMonth(i);
-                                          }
-                                        },
-                                      ),
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: c.color,
+                                      shape: BoxShape.circle,
                                     ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    '${c.label} • ${c.percent}% • ₹${c.amount}',
                                   ),
                                 ],
                               ),
-                            ),
-                            const SizedBox(height: 15),
-                            SizedBox(
-                              height: 200,
-                              child: CustomPaint(
-                                painter: HorizontalBarChartPainter(entries),
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            ...entries.map(
-                              (e) => PayeeItem(
-                                name:
-                                    '${e.key}  ·  ₹${e.value.toStringAsFixed(2)}',
-                                icon: Icons.person_outline,
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Column(
+                            children: analyticsVm.categories
+                                .map((cat) => AnalyticsCategoryCard(cat: cat))
+                                .toList(),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
 
-                    // ------------------ TRANSACTIONS TAB ------------------
-                    // ------------------ TRANSACTIONS TAB ------------------
-                    Builder(
-                      builder: (_) {
-                        //
-                        // --- THIS IS THE CORRECTED LOGIC ---
-                        //
-
-                        // --- Transactions list UI (chart removed) ---
-                        return ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            TextField(
-                              decoration: InputDecoration(
-                                hintText: 'Search transactions... ',
-                                prefixIcon: const Icon(
-                                  Icons.search,
-                                  color: Color(0xFF818181),
-                                ),
-                                filled: true,
-                                fillColor: Colors.white,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                              onChanged: txVm.search,
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              height: 54,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
-                                children: [
-                                  _TxFilterChip(
-                                    text: 'All',
-                                    isSelected:
-                                        txVm.selectedType ==
-                                        TransactionType.all,
-                                    onTap: () =>
-                                        txVm.setType(TransactionType.all),
-                                  ),
-                                  _TxFilterChip(
-                                    text: 'Income',
-                                    isSelected:
-                                        txVm.selectedType ==
-                                        TransactionType.income,
-                                    onTap: () =>
-                                        txVm.setType(TransactionType.income),
-                                  ),
-                                  _TxFilterChip(
-                                    text: 'Expense',
-                                    isSelected:
-                                        txVm.selectedType ==
-                                        TransactionType.expense,
-                                    onTap: () =>
-                                        txVm.setType(TransactionType.expense),
-                                  ),
-                                  _TxFilterChip(
-                                    text: 'Pending',
-                                    isSelected:
-                                        txVm.selectedType ==
-                                        TransactionType.pending,
-                                    onTap: () =>
-                                        txVm.setType(TransactionType.pending),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  '${txVm.filteredTransactions.length} transactions',
-                                  style: const TextStyle(
-                                    color: Color(0xFF6B7280),
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                () {
-                                  final filteredTotal = txVm
-                                      .filteredTransactions
-                                      .fold<double>(
-                                        0,
-                                        (sum, t) =>
-                                            sum +
-                                            (t.incoming ? t.amount : -t.amount),
-                                      );
-                                  return Text(
-                                    '₹${filteredTotal.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 18,
-                                      color: Color(0xFF16202C),
-                                    ),
-                                  );
-                                }(),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'All Transactions',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                                color: Colors.grey[900],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            if (txVm.filteredTransactions.isEmpty &&
-                                txVm.transactions.isEmpty)
-                              const Center(
-                                child: Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 24),
-                                  child: Text(
-                                    'No transactions found',
-                                    style: TextStyle(color: Colors.grey),
-                                  ),
-                                ),
-                              )
-                            else ...[
-                              ...(txVm.filteredTransactions.isEmpty
-                                      ? txVm.transactions
-                                      : txVm.filteredTransactions)
-                                  .map((t) => TransactionCard(tx: t)),
-                            ],
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-                bottomNavigationBar: BottomNavigationBar(
-                  type: BottomNavigationBarType.fixed,
-                  currentIndex: 2,
-                  selectedItemColor: AppColors.primaryBlue,
-                  unselectedItemColor: AppColors.grey600,
-                  backgroundColor: AppColors.white,
-                  onTap: (idx) {
-                    if (idx == 2) return;
-                    switch (idx) {
-                      case 0:
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const HomeScreen()),
-                        );
-                        break;
-                      case 1:
-                        Navigator.of(
-                          context,
-                        ).push(MaterialPageRoute(builder: (_) => ChatScreen()));
-                        break;
-                      case 3:
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => const ProfileScreen(),
+                  // ------------------ PAYEES TAB ------------------
+                  Builder(
+                    builder: (_) {
+                      if (!analyticsVm.hasDataForMonth) {
+                        return Center(
+                          child: Text(
+                            tp.t('No data found'),
+                            style: const TextStyle(color: Colors.grey),
                           ),
                         );
-                        break;
-                    }
-                  },
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.home),
-                      label: 'Home',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.chat),
-                      label: 'Chat',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.analytics),
-                      label: 'Analytics',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.person),
-                      label: 'Profile',
-                    ),
-                  ],
-                ),
+                      }
+                      final entries = analyticsVm.payeeTotals.entries.toList()
+                        ..sort((a, b) => b.value.compareTo(a.value));
+                      if (entries.isEmpty) {
+                        return Center(
+                          child: Text(
+                            tp.t('No payees'),
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        );
+                      }
+                      return ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      "Total Transactions",
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          "₹${analyticsVm.monthSpendTotal.toStringAsFixed(2)}",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 22,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Padding(
+                                          padding: EdgeInsets.only(bottom: 5),
+                                          child: Icon(
+                                            Icons.arrow_upward,
+                                            size: 16,
+                                            color: AppColors.primaryGreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(
+                                  height: 52,
+                                  child: DropdownButtonHideUnderline(
+                                    child: DropdownButton<int>(
+                                      value: analyticsVm.monthIdx,
+                                      icon: const Icon(
+                                        Icons.keyboard_arrow_down,
+                                        size: 18,
+                                        color: Colors.grey,
+                                      ),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[700],
+                                      ),
+                                      items: List.generate(
+                                        analyticsVm.months.length,
+                                        (i) => DropdownMenuItem(
+                                          value: i,
+                                          child: Text(
+                                            i == analyticsVm.currentMonthIndex
+                                                ? 'This month'
+                                                : analyticsVm.months[i],
+                                          ),
+                                        ),
+                                      ),
+                                      onChanged: (i) {
+                                        if (i != null) {
+                                          analyticsVm.setMonth(i);
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            height: 200,
+                            child: CustomPaint(
+                              painter: HorizontalBarChartPainter(entries),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          ...entries.map(
+                            (e) => PayeeItem(
+                              name:
+                                  '${e.key}  ·  ₹${e.value.toStringAsFixed(2)}',
+                              icon: Icons.person_outline,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
+                  // ------------------ TRANSACTIONS TAB ------------------
+                  // ------------------ TRANSACTIONS TAB ------------------
+                  Builder(
+                    builder: (_) {
+                      //
+                      // --- THIS IS THE CORRECTED LOGIC ---
+                      //
+
+                      // --- Transactions list UI (chart removed) ---
+                      return ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          TextField(
+                            decoration: InputDecoration(
+                              hintText: tp.t('Search transactions... '),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Color(0xFF818181),
+                              ),
+                              filled: true,
+                              fillColor: Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onChanged: txVm.search,
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 54,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children: [
+                                _TxFilterChip(
+                                  text: tp.t('All'),
+                                  isSelected:
+                                      txVm.selectedType == TransactionType.all,
+                                  onTap: () =>
+                                      txVm.setType(TransactionType.all),
+                                ),
+                                _TxFilterChip(
+                                  text: tp.t('Income'),
+                                  isSelected:
+                                      txVm.selectedType ==
+                                      TransactionType.income,
+                                  onTap: () =>
+                                      txVm.setType(TransactionType.income),
+                                ),
+                                _TxFilterChip(
+                                  text: tp.t('Expense'),
+                                  isSelected:
+                                      txVm.selectedType ==
+                                      TransactionType.expense,
+                                  onTap: () =>
+                                      txVm.setType(TransactionType.expense),
+                                ),
+                                _TxFilterChip(
+                                  text: tp.t('Pending'),
+                                  isSelected:
+                                      txVm.selectedType ==
+                                      TransactionType.pending,
+                                  onTap: () =>
+                                      txVm.setType(TransactionType.pending),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '${txVm.filteredTransactions.length} ' +
+                                    tp.t('transactions'),
+                                style: const TextStyle(
+                                  color: Color(0xFF6B7280),
+                                  fontSize: 13,
+                                ),
+                              ),
+                              () {
+                                final filteredTotal = txVm.filteredTransactions
+                                    .fold<double>(
+                                      0,
+                                      (sum, t) =>
+                                          sum +
+                                          (t.incoming ? t.amount : -t.amount),
+                                    );
+                                return Text(
+                                  '₹${filteredTotal.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 18,
+                                    color: Color(0xFF16202C),
+                                  ),
+                                );
+                              }(),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            tp.t('All Transactions'),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: Colors.grey[900],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          if (txVm.filteredTransactions.isEmpty &&
+                              txVm.transactions.isEmpty)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                ),
+                                child: Text(
+                                  tp.t('No transactions found'),
+                                  style: const TextStyle(color: Colors.grey),
+                                ),
+                              ),
+                            )
+                          else ...[
+                            ...(txVm.filteredTransactions.isEmpty
+                                    ? txVm.transactions
+                                    : txVm.filteredTransactions)
+                                .map((t) => TransactionCard(tx: t)),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ],
               ),
-            );
-          },
-        ),
+              bottomNavigationBar: BottomNavigationBar(
+                type: BottomNavigationBarType.fixed,
+                currentIndex: 2,
+                selectedItemColor: AppColors.primaryBlue,
+                unselectedItemColor: AppColors.grey600,
+                backgroundColor: AppColors.white,
+                onTap: (idx) {
+                  if (idx == 2) return;
+                  switch (idx) {
+                    case 0:
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const HomeScreen()),
+                      );
+                      break;
+                    case 1:
+                      Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => ChatScreen()));
+                      break;
+                    case 3:
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
+                      );
+                      break;
+                  }
+                },
+                items: [
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.home),
+                    label: tp.t('Home'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.chat),
+                    label: tp.t('Chat'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.analytics),
+                    label: tp.t('Analytics'),
+                  ),
+                  BottomNavigationBarItem(
+                    icon: const Icon(Icons.person),
+                    label: tp.t('Profile'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

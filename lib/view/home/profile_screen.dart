@@ -10,14 +10,46 @@ import '../widgets/profile_tile.dart';
 import 'home_screen.dart';
 import '../chat/chat_screen.dart';
 import '../tracker/analytics_screen.dart';
-import '../../localization/localization_provider.dart';
-import '../../localization/l10n.dart';
+import 'package:echeque_mvp/localization/translation_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final tp = context.watch<TranslationProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      tp.translateVisible([
+        'Profile',
+        'Account Settings',
+        'Personal Information',
+        'View or update your details',
+        'Security Settings',
+        'Notification Preferences',
+        'Customize alerts',
+        'Language',
+        'Choose your preferred language',
+        'Financial Tools',
+        'Budget Planner',
+        'Track your spending',
+        'Currency Converter',
+        'Check exchange rates',
+        'Bill Payment',
+        'Pay your bills easily',
+        'Tax Calculator',
+        'Estimate your taxes',
+        'Auto Fill Forms',
+        'Speed up your applications',
+        'Support & Help',
+        'Contact Us',
+        'Get help and support',
+        'Privacy Policy',
+        'Read our privacy terms',
+        'Logout',
+        'Home', 'Chat', 'Analytics', 'Profile',
+        'Choose Language',
+      ]);
+    });
     return ChangeNotifierProvider(
       create: (_) => ProfileViewModel(),
       child: Consumer<ProfileViewModel>(
@@ -28,15 +60,7 @@ class ProfileScreen extends StatelessWidget {
             elevation: 0,
             centerTitle: true,
             leading: const BackButton(color: Colors.black),
-            title: Consumer<LocalizationProvider>(
-              builder: (context, lp, _) => Text(
-                L10n.tr(lp.code, 'profile'),
-                style: TextStyle(
-                  color: AppColors.darkText,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            title: Text(tp.t('Profile'), style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600)),
             actions: [
               IconButton(
                 icon: Icon(Icons.edit_outlined, color: AppColors.primaryBlue),
@@ -113,117 +137,86 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => Text(
-                  L10n.tr(lp.code, 'account_settings'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                ),
-              ),
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => ProfileTile(
-                  icon: Icons.person,
-                  title: L10n.tr(lp.code, 'personal_information'),
-                  subtitle: L10n.tr(lp.code, 'personal_information_sub'),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+              Text(tp.t('Account Settings'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ProfileTile(
+                icon: Icons.person,
+                title: tp.t('Personal Information'),
+                subtitle: tp.t('View or update your details'),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    builder: (_) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                        left: 16,
+                        right: 16,
+                        top: 12,
                       ),
-                      builder: (_) => Padding(
-                        padding: EdgeInsets.only(
-                          bottom: MediaQuery.of(context).viewInsets.bottom,
-                          left: 16,
-                          right: 16,
-                          top: 12,
-                        ),
-                        child: const _PersonalInfoCard(),
-                      ),
-                    );
-                  },
-                ),
+                      child: const _PersonalInfoCard(),
+                    ),
+                  );
+                },
               ),
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => ProfileTile(
-                  icon: Icons.shield,
-                  title: L10n.tr(lp.code, 'security_settings'),
-                  subtitle: '—',
-                ),
-              ),
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => ProfileTile(
-                  icon: Icons.notifications,
-                  title: L10n.tr(lp.code, 'notification_preferences'),
-                  subtitle: L10n.tr(lp.code, 'notification_preferences_sub'),
-                ),
-              ),
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => ProfileTile(
-                  icon: Icons.language,
-                  title: L10n.tr(lp.code, 'language'),
-                  subtitle: L10n.tr(lp.code, 'language_sub'),
-                  onTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-                      ),
-                      builder: (_) => _LanguageSheet(current: lp.code),
-                    );
-                  },
-                ),
+              ProfileTile(icon: Icons.shield, title: tp.t('Security Settings'), subtitle: '—'),
+              ProfileTile(icon: Icons.notifications, title: tp.t('Notification Preferences'), subtitle: tp.t('Customize alerts')),
+              ProfileTile(
+                icon: Icons.language,
+                title: tp.t('Language'),
+                subtitle: tp.t('Choose your preferred language'),
+                onTap: () {
+                  showModalBottomSheet(
+                    context: context,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                    ),
+                    builder: (_) => const _LanguageSheet(),
+                  );
+                },
               ),
               const SizedBox(height: 16),
 
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => Text(
-                  L10n.tr(lp.code, 'financial_tools'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                ),
-              ),
-              const ProfileTile(
+              Text(tp.t('Financial Tools'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ProfileTile(
                 icon: Icons.fact_check,
-                title: 'Budget Planner',
-                subtitle: 'Track your spending',
+                title: tp.t('Budget Planner'),
+                subtitle: tp.t('Track your spending'),
               ),
-              const ProfileTile(
+              ProfileTile(
                 icon: Icons.sync_alt,
-                title: 'Currency Converter',
-                subtitle: 'Check exchange rates',
+                title: tp.t('Currency Converter'),
+                subtitle: tp.t('Check exchange rates'),
               ),
-              const ProfileTile(
+              ProfileTile(
                 icon: Icons.receipt_long,
-                title: 'Bill Payment',
-                subtitle: 'Pay your bills easily',
+                title: tp.t('Bill Payment'),
+                subtitle: tp.t('Pay your bills easily'),
               ),
-              const ProfileTile(
+              ProfileTile(
                 icon: Icons.calculate,
-                title: 'Tax Calculator',
-                subtitle: 'Estimate your taxes',
+                title: tp.t('Tax Calculator'),
+                subtitle: tp.t('Estimate your taxes'),
               ),
-              const ProfileTile(
+              ProfileTile(
                 icon: Icons.assignment,
-                title: 'Auto Fill Forms',
-                subtitle: 'Speed up your applications',
+                title: tp.t('Auto Fill Forms'),
+                subtitle: tp.t('Speed up your applications'),
               ),
               const SizedBox(height: 16),
 
-              Consumer<LocalizationProvider>(
-                builder: (context, lp, _) => Text(
-                  L10n.tr(lp.code, 'support_and_help'),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                ),
-              ),
-              const ProfileTile(
+              Text(tp.t('Support & Help'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              ProfileTile(
                 icon: Icons.help,
-                title: 'Contact Us',
-                subtitle: 'Get help and support',
+                title: tp.t('Contact Us'),
+                subtitle: tp.t('Get help and support'),
               ),
-              const ProfileTile(
+              ProfileTile(
                 icon: Icons.policy,
-                title: 'Privacy Policy',
-                subtitle: 'Read our privacy terms',
+                title: tp.t('Privacy Policy'),
+                subtitle: tp.t('Read our privacy terms'),
               ),
               const SizedBox(height: 25),
 
@@ -238,16 +231,7 @@ class ProfileScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: Consumer<LocalizationProvider>(
-                    builder: (context, lp, _) => Text(
-                      L10n.tr(lp.code, 'logout'),
-                      style: const TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                      ),
-                    ),
-                  ),
+                  child: Text(tp.t('Logout'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18)),
                 ),
               ),
               const SizedBox(height: 15),
@@ -268,23 +252,25 @@ class ProfileScreen extends StatelessWidget {
                   );
                   break;
                 case 1:
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => ChatScreen()),
-                  );
+                  Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => ChatScreen()));
                   break;
                 case 2:
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const AnalyticsScreen(),
+                    ),
                   );
                   break;
               }
 
             },
-            items: const [
-              BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-              BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
-              BottomNavigationBarItem(icon: Icon(Icons.analytics), label: 'Analytics'),
-              BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+            items: [
+              BottomNavigationBarItem(icon: const Icon(Icons.home), label: context.watch<TranslationProvider>().t('Home')),
+              BottomNavigationBarItem(icon: const Icon(Icons.chat), label: context.watch<TranslationProvider>().t('Chat')),
+              BottomNavigationBarItem(icon: const Icon(Icons.analytics), label: context.watch<TranslationProvider>().t('Analytics')),
+              BottomNavigationBarItem(icon: const Icon(Icons.person), label: context.watch<TranslationProvider>().t('Profile')),
             ],
           ),
         ),
@@ -446,13 +432,16 @@ class _PersonalInfoCard extends StatelessWidget {
 }
 
 class _LanguageSheet extends StatelessWidget {
-  final String current;
-
-  const _LanguageSheet({required this.current});
+  const _LanguageSheet();
 
   @override
   Widget build(BuildContext context) {
-    final locales = L10n.supportedLocales;
+    final tp = context.read<TranslationProvider>();
+    final options = const [
+      {'code': 'en', 'label': 'English'},
+      {'code': 'hi', 'label': 'हिन्दी (Hindi)'},
+      {'code': 'kn', 'label': 'ಕನ್ನಡ (Kannada)'},
+    ];
     return SafeArea(
       top: false,
       child: Padding(
@@ -461,37 +450,45 @@ class _LanguageSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Consumer<LocalizationProvider>(
-              builder: (context, lp, _) => Text(
-                L10n.tr(lp.code, 'choose_language'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
+            Text(context.read<TranslationProvider>().t('Choose Language'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
             const SizedBox(height: 10),
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) {
-                final locale = locales[index];
-                final code = locale.languageCode;
-                final name = L10n.localeNames[code] ?? code;
-                final selected = code == current;
-                return ListTile(
+            ...options.map((o) => ListTile(
                   leading: const Icon(Icons.language),
-                  title: Text(name),
-                  trailing: selected
-                      ? const Icon(Icons.check_circle, color: Colors.green)
-                      : null,
+                  title: Text(o['label'] as String),
+                  trailing: tp.lang == o['code'] ? const Icon(Icons.check_circle, color: Colors.green) : null,
                   onTap: () async {
-                    await Provider.of<LocalizationProvider>(context, listen: false)
-                        .setCode(code);
-                    if (context.mounted) Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                    final visible = <String>[
+                      'Profile',
+                      'Account Settings',
+                      'Personal Information',
+                      'View or update your details',
+                      'Security Settings',
+                      'Notification Preferences',
+                      'Customize alerts',
+                      'Language',
+                      'Choose your preferred language',
+                      'Financial Tools',
+                      'Budget Planner',
+                      'Track your spending',
+                      'Currency Converter',
+                      'Check exchange rates',
+                      'Bill Payment',
+                      'Pay your bills easily',
+                      'Tax Calculator',
+                      'Estimate your taxes',
+                      'Auto Fill Forms',
+                      'Speed up your applications',
+                      'Support & Help',
+                      'Contact Us',
+                      'Get help and support',
+                      'Privacy Policy',
+                      'Read our privacy terms',
+                      'Logout',
+                    ];
+                    await tp.setLanguage(o['code'] as String, prefetch: visible);
                   },
-                );
-              },
-              separatorBuilder: (_, __) => const Divider(height: 0),
-              itemCount: locales.length,
-            ),
+                )),
             const SizedBox(height: 8),
           ],
         ),

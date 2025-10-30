@@ -18,6 +18,12 @@ class QuickActionsViewModel extends ChangeNotifier {
       Color(0xFF10B981),
     ),
     QuickActionItem(
+      "Portfolio",
+      Icons.show_chart,
+      Color(0xFFE6FFF4),
+      Color(0xFF10B981),
+    ),
+    QuickActionItem(
       "Recharge",
       Icons.phone_iphone,
       Color(0xFFF3ECFF),
@@ -58,6 +64,57 @@ class QuickActionsViewModel extends ChangeNotifier {
       Icons.savings,
       Color(0xFFF0FDF4),
       Color(0xFF22C55E),
+    ),
+    // Added bank-related forms and utilities
+    QuickActionItem(
+      "Passbook",
+      Icons.menu_book_outlined,
+      Color(0xFFE8F0FF),
+      Color(0xFF2563EB),
+    ),
+    QuickActionItem(
+      "Confirmation",
+      Icons.verified_outlined,
+      Color(0xFFFFF7E6),
+      Color(0xFFF59E0B),
+    ),
+
+    QuickActionItem(
+      "E learning",
+      Icons.school_outlined,
+      Color(0xFFF3ECFF),
+      Color(0xFF7C3AED),
+    ),
+    QuickActionItem(
+      "Change Mail",
+      Icons.alternate_email,
+      Color(0xFFFCE7F3),
+      Color(0xFFDB2777),
+    ),
+    QuickActionItem(
+      "Change No.",
+      Icons.phone_android_outlined,
+      Color(0xFFE0FBFF),
+      Color(0xFF06B6D4),
+    ),
+
+    QuickActionItem(
+      "Stable Coins",
+      Icons.currency_bitcoin,
+      Color(0xFFE8EAF6),
+      Color(0xFF3F51B5),
+    ),
+    QuickActionItem(
+      "Forex",
+      Icons.currency_exchange,
+      Color(0xFFE8EAF6),
+      Color(0xFF3F51B5),
+    ),
+    QuickActionItem(
+      "Other Forms",
+      Icons.description_outlined,
+      Color(0xFFE8EAF6),
+      Color(0xFF3F51B5),
     ),
   ];
 }

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart';
 
 class DepositService {
   DepositService._();
@@ -19,6 +20,22 @@ class DepositService {
       'status': 'Pending',
       'createdAt': FieldValue.serverTimestamp(),
     });
+    try {
+      final amt = ((data['depositAmount'] as num?) ?? (data['cashBreakdownTotal'] as num?) ?? 0).toDouble();
+      final slipNo = (data['slipNo'] as String?) ?? doc.id;
+      await NotificationService.instance.send(
+        toUid: uid,
+        type: 'deposit_created',
+        title: 'Deposit created',
+        body: 'Deposit $slipNo of ₹$amt created',
+        amount: amt,
+        occurredAt: DateTime.now(),
+        data: {
+          'depositId': doc.id,
+          'slipNo': slipNo,
+        },
+      );
+    } catch (_) {}
     return doc.id;
   }
 
