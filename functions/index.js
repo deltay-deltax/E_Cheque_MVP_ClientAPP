@@ -676,7 +676,7 @@ import admin from "firebase-admin";
 import { logger } from "firebase-functions";
 import { onDocumentUpdated, onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { onRequest } from "firebase-functions/v2/https";
+import { onRequest, onCall, HttpsError } from "firebase-functions/v2/https";
 import PDFDocument from "pdfkit";
 
 // -------------------- Initialize --------------------
@@ -879,6 +879,162 @@ export const onTransactionCreate = onDocumentCreated(
   }
 );
 const db = admin.firestore();
+
+// -------------------- Callable: Stop Cheque --------------------
+/**
+ * stopCheque callable function
+ * data: { issuerUid: string, chequeId: string, pin: string }
+ */
+export const stopCheque = onCall({ region: "asia-south1", memory: "256MiB", timeoutSeconds: 60 }, async (req) => {
+  const auth = req.auth;
+  if (!auth || !auth.uid) {
+    throw new HttpsError("unauthenticated", "Authentication required");
+  }
+  const callerUid = String(auth.uid);
+  const { issuerUid, chequeId, pin } = req.data || {};
+  logger.info("stopCheque:start", { callerUid, issuerUid, chequeId });
+  if (!issuerUid || !chequeId || !pin) {
+    throw new HttpsError("invalid-argument", "issuerUid, chequeId and pin are required");
+  }
+  if (issuerUid !== callerUid) {
+    throw new HttpsError("permission-denied", "Only issuer can stop the cheque");
+  }
+
+  const chequeRef = db.collection("users").doc(issuerUid).collection("cheques").doc(chequeId);
+  const chequeSnap = await chequeRef.get();
+  if (!chequeSnap.exists) {
+    logger.error("stopCheque:not-found", { issuerUid, chequeId });
+    throw new HttpsError("not-found", "Cheque not found");
+  }
+  const c = chequeSnap.data() || {};
+  const status = String(c.status || "pending").toLowerCase();
+  if (status !== "pending") throw new HttpsError("failed-precondition", "Only pending cheques can be stopped");
+
+  // Verify PIN from bankUsers by uid/email with support for object/legacy
+  const userDoc = await db.collection("users").doc(callerUid).get();
+  const email = userDoc.get("email") || null;
+  let bankUserSnap = null;
+  // Try bankUsers by uid
+  let q = await db.collection("bankUsers").where("uid", "==", callerUid).limit(1).get();
+  if (!q.empty) bankUserSnap = q.docs[0];
+  // Try by email
+  if (!bankUserSnap && email) {
+    q = await db.collection("bankUsers").where("email", "==", email).limit(1).get();
+    if (!q.empty) bankUserSnap = q.docs[0];
+  }
+  // Fallback doc id == uid
+  if (!bankUserSnap) {
+    const fb = await db.collection("bankUsers").doc(callerUid).get();
+    if (fb.exists) bankUserSnap = fb;
+  }
+  if (!bankUserSnap) {
+    logger.error("stopCheque:bankUser-not-found", { callerUid, email });
+    throw new HttpsError("failed-precondition", "Bank user not found for PIN verification");
+  }
+
+  const bu = bankUserSnap.data() || {};
+  const crypto = await import("node:crypto");
+  let ok = false;
+  // Primary: bankUsers PIN (PBKDF2 or legacy sha256)
+  if (bu.transactionPin && bu.transactionPin.hash && bu.transactionPin.salt && bu.transactionPin.iterations) {
+    try {
+      const { hash, salt, iterations, algo } = bu.transactionPin;
+      const outLen = Buffer.from(hash, "hex").length;
+      const digest = crypto.pbkdf2Sync(pin, Buffer.from(salt, "hex"), iterations, outLen, algo || "sha256").toString("hex");
+      ok = Buffer.compare(Buffer.from(hash, "hex"), Buffer.from(digest, "hex")) === 0;
+    } catch {}
+  } else if (bu.transactionPinHash) {
+    try {
+      const digest = crypto.createHash("sha256").update(pin).digest("hex");
+      ok = Buffer.compare(Buffer.from(bu.transactionPinHash, "hex"), Buffer.from(digest, "hex")) === 0;
+    } catch {}
+  }
+
+  // Fallback: verify against users/{uid} like the app (legacy sha256 or iterative sha256-iter)
+  if (!ok) {
+    const userPinDoc = await db.collection("users").doc(callerUid).get();
+    const ud = userPinDoc.data() || {};
+    // Legacy flat hash
+    if (!ok && typeof ud.transactionPinHash === "string") {
+      try {
+        const digest = crypto.createHash("sha256").update(pin).digest("hex");
+        ok = digest === String(ud.transactionPinHash);
+      } catch {}
+    }
+    // Iterative custom scheme
+    if (!ok && ud.transactionPin && typeof ud.transactionPin === "object") {
+      try {
+        const salt = String(ud.transactionPin.salt || "");
+        const hash = String(ud.transactionPin.hash || "");
+        const iterations = Number(ud.transactionPin.iterations || 20000);
+        if (salt && hash && iterations > 0) {
+          // Derive like app: sha256 over utf8("salt:pin"), then iterate sha256(prev || salt)
+          const first = crypto.createHash("sha256").update(`${salt}:${pin}`).digest();
+          let out = Buffer.from(first);
+          for (let i = 1; i < iterations; i++) {
+            const concat = Buffer.concat([out, Buffer.from(salt, "utf8")]);
+            out = crypto.createHash("sha256").update(concat).digest();
+          }
+          const derived = out.toString("hex");
+          ok = derived === hash;
+        }
+      } catch {}
+    }
+  }
+
+  if (!ok) {
+    logger.warn("stopCheque:pin-invalid", { callerUid });
+    throw new HttpsError("permission-denied", "Invalid PIN");
+  }
+
+  const receiverUid = c.receiverUid || null;
+  const receiverRef = receiverUid
+    ? db.collection("users").doc(String(receiverUid)).collection("inboxCheques").doc(chequeId)
+    : null;
+
+  await db.runTransaction(async (t) => {
+    // READS FIRST
+    const fresh = await t.get(chequeRef);
+    const recvSnap = receiverRef ? await t.get(receiverRef) : null;
+
+    // VALIDATIONS AFTER READS
+    if (!fresh.exists) throw new HttpsError("not-found", "Cheque not found");
+    const cur = String((fresh.data()?.status) || "pending").toLowerCase();
+    if (cur !== "pending") throw new HttpsError("failed-precondition", "Only pending cheques can be stopped");
+
+    // WRITES AFTER ALL READS
+    const now = admin.firestore.FieldValue.serverTimestamp();
+    t.set(chequeRef, { status: "stopped", stoppedAt: now, stoppedBy: callerUid }, { merge: true });
+    if (receiverRef) {
+      if (recvSnap && recvSnap.exists) {
+        t.set(receiverRef, { status: "stopped", stoppedAt: now, stoppedBy: callerUid }, { merge: true });
+      } else {
+        logger.warn("stopCheque:receiver-inbox-missing", { receiverUid, chequeId });
+      }
+    }
+    const logRef = chequeRef.collection("logs").doc();
+    t.set(logRef, { action: "user_stopped", at: now, actorUid: callerUid, chequeId });
+  });
+
+  // Optional: notify receiver
+  if (receiverUid) {
+    try {
+      await db.collection("users").doc(String(receiverUid)).collection("notifications").add({
+        type: "cheque_stopped",
+        title: "Cheque Stopped",
+        body: `A cheque has been stopped by the issuer`,
+        data: { chequeId, issuerUid: callerUid },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        read: false,
+        toUid: String(receiverUid),
+        fromUid: callerUid,
+      });
+    } catch {}
+  }
+
+  logger.info("stopCheque:done", { issuerUid, chequeId, receiverUid });
+  return { ok: true, status: "stopped" };
+});
 
 // -------------------- Type JSDoc (for hints only) --------------------
 /**

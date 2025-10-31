@@ -10,7 +10,7 @@ class ELearningScreen extends StatelessWidget {
     final videos = <_Video>[
       _Video(
         title: 'How to open a bank account (Beginner Guide)',
-        url: Uri.parse('https://www.youtube.com/watch?v=5hQZgQ3XkHk'),
+        url: Uri.parse('https://youtu.be/VUCPnbFm1Tw'),
         thumb: 'https://img.youtube.com/vi/5hQZgQ3XkHk/hqdefault.jpg',
       ),
       _Video(

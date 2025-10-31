@@ -25,12 +25,13 @@ service cloud.firestore {
           && request.resource.data.status is string
           && request.resource.data.chequeNo is string;
 
+        // Forbid client changing status; only allow safe fields like notes/signaturePath
         allow update: if authed()
           && (uid() == userId || isAdmin())
           && request.resource.data.diff(resource.data).addedKeys().size() == 0
           && request.resource.data.diff(resource.data).removedKeys().size() == 0
           && request.resource.data.diff(resource.data).changedKeys()
-             .hasOnly(['status', 'notes', 'signaturePath']);
+             .hasOnly(['notes', 'signaturePath']);
 
         allow delete: if authed() && (uid() == userId || isAdmin());
       }
@@ -38,21 +39,11 @@ service cloud.firestore {
       match /inboxCheques/{chequeId} {
         allow read, list: if authed() && uid() == userId;
 
-        allow create: if authed()
-          && request.resource.data.issuerUid is string
-          && uid() == request.resource.data.issuerUid
-          && request.resource.data.payee is string
-          && request.resource.data.amount is number
-          && request.resource.data.date is timestamp
-          && request.resource.data.bankName is string
-          && request.resource.data.status is string
-          && request.resource.data.chequeNo is string;
+        // Created by server only
+        allow create: if false;
 
-        allow update: if authed()
-          && ((uid() == userId || uid() == resource.data.issuerUid) || isAdmin())
-          && request.resource.data.diff(resource.data).addedKeys().size() == 0
-          && request.resource.data.diff(resource.data).removedKeys().size() == 0
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly(['status']);
+        // No client updates to inboxCheques; status is server-managed
+        allow update: if false;
 
         allow delete: if authed() && (uid() == userId || isAdmin());
       }

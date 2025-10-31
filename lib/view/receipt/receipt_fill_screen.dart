@@ -6,6 +6,8 @@ import 'package:echeque_mvp/services/receipt_service.dart';
 import 'package:echeque_mvp/view/transaction_pin/enter_pin_screen.dart';
 import 'package:echeque_mvp/view/receipt/receipt_pdf.dart';
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
+import 'package:echeque_mvp/localization/translation_provider.dart';
 
 class ReceiptSlipScreen extends StatefulWidget {
   const ReceiptSlipScreen({super.key});
@@ -93,14 +95,15 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tp = context.watch<TranslationProvider>();
     return Scaffold(
       backgroundColor: const Color(0xFFF7F9FC),
       appBar: AppBar(
         backgroundColor: const Color(0xFFF7F9FC),
         elevation: 0,
-        title: const Text(
-          "Receipt",
-          style: TextStyle(
+        title: Text(
+          tp.t('Receipt'),
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 22,
             color: Colors.black,
@@ -115,7 +118,7 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
                 MaterialPageRoute(builder: (_) => const ReceiptListScreen()),
               );
             },
-            child: const Text('View Receipts'),
+            child: Text(tp.t('View Receipts')),
           ),
         ],
       ),
@@ -137,22 +140,22 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
             padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
             children: [
               _SectionCard(
-                title: "Receiptor Information",
+                title: tp.t('Receiptor Information'),
                 children: [
                   DepositInputField(
-                    hint: "Account Holder",
+                    hint: tp.t('Account Holder'),
                     controller: TextEditingController(text: holder),
                     readOnly: true,
                   ),
                   const SizedBox(height: 6),
                   DepositInputField(
-                    hint: "Account No.",
+                    hint: tp.t('Account No.'),
                     controller: TextEditingController(text: acctNo),
                     readOnly: true,
                   ),
                   const SizedBox(height: 6),
                   DepositInputField(
-                    hint: "Account Type",
+                    hint: tp.t('Account Type'),
                     controller: TextEditingController(text: acctType),
                     readOnly: true,
                   ),
@@ -160,17 +163,17 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
               ),
 
               _SectionCard(
-                title: "Receipt Amount in Figures",
+                title: tp.t('Receipt Amount in Figures'),
                 children: [
                   DepositInputField(
-                    hint: "Amount",
+                    hint: tp.t('Amount'),
                     controller: _amountCtrl,
                     type: TextInputType.number,
                     onChanged: _onAmountChanged,
                   ),
                   const SizedBox(height: 6),
                   DepositInputField(
-                    hint: "Amount in Words",
+                    hint: tp.t('Amount in Words'),
                     controller: _amountWordsCtrl,
                     readOnly: true,
                     maxLines: 2,
@@ -179,12 +182,12 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
               ),
 
               _SectionCard(
-                title: "Declaration",
+                title: tp.t('Declaration'),
                 children: [
                   Row(
                     children: [
                       Text(
-                        "I agree to the terms and conditions",
+                        tp.t('I agree to the terms and conditions'),
                         style: TextStyle(fontSize: 15),
                       ),
                       Spacer(),
@@ -206,7 +209,7 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
                   onPressed: () async {
                     if (!_agreed) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please agree to the terms to proceed')),
+                        SnackBar(content: Text(tp.t('Please agree to the terms to proceed'))),
                       );
                       return;
                     }
@@ -226,9 +229,7 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
 
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Receipt created successfully'),
-                        ),
+                        SnackBar(content: Text(tp.t('Receipt created successfully'))),
                       );
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
@@ -243,9 +244,9 @@ class _ReceiptSlipScreenState extends State<ReceiptSlipScreen> {
                       borderRadius: BorderRadius.circular(15),
                     ),
                   ),
-                  child: const Text(
-                    "Create Receipt",
-                    style: TextStyle(
+                  child: Text(
+                    tp.t('Create Receipt'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 17,
@@ -268,8 +269,9 @@ class ReceiptPdfPreviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tp = context.watch<TranslationProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Receipt Preview')),
+      appBar: AppBar(title: Text(tp.t('Receipt Preview'))),
       body: PdfPreview(
         build: (format) => ReceiptPdf.build(data),
         canChangeOrientation: false,
@@ -284,8 +286,9 @@ class ReceiptListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tp = context.watch<TranslationProvider>();
     return Scaffold(
-      appBar: AppBar(title: const Text('Receipts')),
+      appBar: AppBar(title: Text(tp.t('Receipts'))),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: ReceiptService.instance.streamUserReceipts(),
         builder: (context, snap) {
@@ -293,13 +296,13 @@ class ReceiptListScreen extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           final items = snap.data!;
-          if (items.isEmpty) return const Center(child: Text('No receipts'));
+          if (items.isEmpty) return Center(child: Text(tp.t('No receipts')));
           return ListView.separated(
             itemCount: items.length,
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (context, i) {
               final d = items[i];
-              final title = (d['id'] as String?) ?? 'Receipt';
+              final title = (d['id'] as String?) ?? tp.t('Receipt');
               final subtitle = (d['createdAt'] as String?) ?? '';
               return ListTile(
                 title: Text(title),
@@ -337,6 +340,7 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tp = context.watch<TranslationProvider>();
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
@@ -348,7 +352,7 @@ class _SectionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            tp.t(title),
             style: const TextStyle(
               color: Color(0xFF2272E5),
               fontWeight: FontWeight.bold,

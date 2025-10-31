@@ -10,6 +10,8 @@ import '../widgets/profile_tile.dart';
 import 'home_screen.dart';
 import '../chat/chat_screen.dart';
 import '../tracker/analytics_screen.dart';
+import '../tools/currency_converter_screen.dart';
+import '../tools/tax_calculator_screen.dart';
 import 'package:echeque_mvp/localization/translation_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -46,7 +48,10 @@ class ProfileScreen extends StatelessWidget {
         'Privacy Policy',
         'Read our privacy terms',
         'Logout',
-        'Home', 'Chat', 'Analytics', 'Profile',
+        'Home',
+        'Chat',
+        'Analytics',
+        'Profile',
         'Choose Language',
       ]);
     });
@@ -60,7 +65,13 @@ class ProfileScreen extends StatelessWidget {
             elevation: 0,
             centerTitle: true,
             leading: const BackButton(color: Colors.black),
-            title: Text(tp.t('Profile'), style: TextStyle(color: AppColors.darkText, fontWeight: FontWeight.w600)),
+            title: Text(
+              tp.t('Profile'),
+              style: TextStyle(
+                color: AppColors.darkText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             actions: [
               IconButton(
                 icon: Icon(Icons.edit_outlined, color: AppColors.primaryBlue),
@@ -137,7 +148,13 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
 
-              Text(tp.t('Account Settings'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                tp.t('Account Settings'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
               ProfileTile(
                 icon: Icons.person,
                 title: tp.t('Personal Information'),
@@ -147,7 +164,9 @@ class ProfileScreen extends StatelessWidget {
                     context: context,
                     isScrollControlled: true,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(18),
+                      ),
                     ),
                     builder: (_) => Padding(
                       padding: EdgeInsets.only(
@@ -161,8 +180,16 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
-              ProfileTile(icon: Icons.shield, title: tp.t('Security Settings'), subtitle: '—'),
-              ProfileTile(icon: Icons.notifications, title: tp.t('Notification Preferences'), subtitle: tp.t('Customize alerts')),
+              ProfileTile(
+                icon: Icons.shield,
+                title: tp.t('Security Settings'),
+                subtitle: '—',
+              ),
+              ProfileTile(
+                icon: Icons.notifications,
+                title: tp.t('Notification Preferences'),
+                subtitle: tp.t('Customize alerts'),
+              ),
               ProfileTile(
                 icon: Icons.language,
                 title: tp.t('Language'),
@@ -171,7 +198,9 @@ class ProfileScreen extends StatelessWidget {
                   showModalBottomSheet(
                     context: context,
                     shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(18),
+                      ),
                     ),
                     builder: (_) => const _LanguageSheet(),
                   );
@@ -179,7 +208,13 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              Text(tp.t('Financial Tools'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                tp.t('Financial Tools'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
               ProfileTile(
                 icon: Icons.fact_check,
                 title: tp.t('Budget Planner'),
@@ -189,6 +224,9 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.sync_alt,
                 title: tp.t('Currency Converter'),
                 subtitle: tp.t('Check exchange rates'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CurrencyConverterScreen()),
+                ),
               ),
               ProfileTile(
                 icon: Icons.receipt_long,
@@ -199,6 +237,9 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.calculate,
                 title: tp.t('Tax Calculator'),
                 subtitle: tp.t('Estimate your taxes'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TaxCalculatorScreen()),
+                ),
               ),
               ProfileTile(
                 icon: Icons.assignment,
@@ -207,7 +248,13 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              Text(tp.t('Support & Help'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+              Text(
+                tp.t('Support & Help'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 17,
+                ),
+              ),
               ProfileTile(
                 icon: Icons.help,
                 title: tp.t('Contact Us'),
@@ -231,7 +278,14 @@ class ProfileScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: Text(tp.t('Logout'), style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18)),
+                  child: Text(
+                    tp.t('Logout'),
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 15),
@@ -258,19 +312,28 @@ class ProfileScreen extends StatelessWidget {
                   break;
                 case 2:
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => const AnalyticsScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const AnalyticsScreen()),
                   );
                   break;
               }
-
             },
             items: [
-              BottomNavigationBarItem(icon: const Icon(Icons.home), label: context.watch<TranslationProvider>().t('Home')),
-              BottomNavigationBarItem(icon: const Icon(Icons.chat), label: context.watch<TranslationProvider>().t('Chat')),
-              BottomNavigationBarItem(icon: const Icon(Icons.analytics), label: context.watch<TranslationProvider>().t('Analytics')),
-              BottomNavigationBarItem(icon: const Icon(Icons.person), label: context.watch<TranslationProvider>().t('Profile')),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.home),
+                label: context.watch<TranslationProvider>().t('Home'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.chat),
+                label: context.watch<TranslationProvider>().t('Chat'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.analytics),
+                label: context.watch<TranslationProvider>().t('Analytics'),
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.person),
+                label: context.watch<TranslationProvider>().t('Profile'),
+              ),
             ],
           ),
         ),
@@ -450,45 +513,52 @@ class _LanguageSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(context.read<TranslationProvider>().t('Choose Language'), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(
+              context.read<TranslationProvider>().t('Choose Language'),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
             const SizedBox(height: 10),
-            ...options.map((o) => ListTile(
-                  leading: const Icon(Icons.language),
-                  title: Text(o['label'] as String),
-                  trailing: tp.lang == o['code'] ? const Icon(Icons.check_circle, color: Colors.green) : null,
-                  onTap: () async {
-                    Navigator.of(context).pop();
-                    final visible = <String>[
-                      'Profile',
-                      'Account Settings',
-                      'Personal Information',
-                      'View or update your details',
-                      'Security Settings',
-                      'Notification Preferences',
-                      'Customize alerts',
-                      'Language',
-                      'Choose your preferred language',
-                      'Financial Tools',
-                      'Budget Planner',
-                      'Track your spending',
-                      'Currency Converter',
-                      'Check exchange rates',
-                      'Bill Payment',
-                      'Pay your bills easily',
-                      'Tax Calculator',
-                      'Estimate your taxes',
-                      'Auto Fill Forms',
-                      'Speed up your applications',
-                      'Support & Help',
-                      'Contact Us',
-                      'Get help and support',
-                      'Privacy Policy',
-                      'Read our privacy terms',
-                      'Logout',
-                    ];
-                    await tp.setLanguage(o['code'] as String, prefetch: visible);
-                  },
-                )),
+            ...options.map(
+              (o) => ListTile(
+                leading: const Icon(Icons.language),
+                title: Text(o['label'] as String),
+                trailing: tp.lang == o['code']
+                    ? const Icon(Icons.check_circle, color: Colors.green)
+                    : null,
+                onTap: () async {
+                  Navigator.of(context).pop();
+                  final visible = <String>[
+                    'Profile',
+                    'Account Settings',
+                    'Personal Information',
+                    'View or update your details',
+                    'Security Settings',
+                    'Notification Preferences',
+                    'Customize alerts',
+                    'Language',
+                    'Choose your preferred language',
+                    'Financial Tools',
+                    'Budget Planner',
+                    'Track your spending',
+                    'Currency Converter',
+                    'Check exchange rates',
+                    'Bill Payment',
+                    'Pay your bills easily',
+                    'Tax Calculator',
+                    'Estimate your taxes',
+                    'Auto Fill Forms',
+                    'Speed up your applications',
+                    'Support & Help',
+                    'Contact Us',
+                    'Get help and support',
+                    'Privacy Policy',
+                    'Read our privacy terms',
+                    'Logout',
+                  ];
+                  await tp.setLanguage(o['code'] as String, prefetch: visible);
+                },
+              ),
+            ),
             const SizedBox(height: 8),
           ],
         ),

@@ -22,6 +22,7 @@ import '../tracker/add_expense_screen.dart';
 import '../tracker/analytics_screen.dart';
 import '../tracker/add_category_screen.dart';
 import 'package:echeque_mvp/view/elearning/e_learning_screen.dart';
+import 'package:echeque_mvp/view/home/stop_cheque_screen.dart';
 // removed BankLinkGuard
 import '../chat/chat_screen.dart';
 import 'package:echeque_mvp/localization/translation_provider.dart';
@@ -773,7 +774,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: const Icon(Icons.add, color: Colors.white),
             ),
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-            bottomNavigationBar: _buildBottomNav(context, 0),
+            bottomNavigationBar:
+                StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                  stream: UserService.instance.streamCurrentUser(),
+                  builder: (context, snapshot) {
+                    final data = snapshot.data?.data();
+                    final bankLinked = (data?['bankLinked'] as bool?) ?? false;
+                    if (!bankLinked) return const SizedBox.shrink();
+                    return _buildBottomNav(context, 0);
+                  },
+                ),
           );
         },
       ),
@@ -785,6 +795,7 @@ class _HomeScreenState extends State<HomeScreen> {
 /// 🧭 Bottom Navigation Builder
 /// -----------------------------------------------------------
 Widget _buildBottomNav(BuildContext context, int currentIndex) {
+  final tp = context.watch<TranslationProvider>();
   return BottomNavigationBar(
     type: BottomNavigationBarType.fixed,
     currentIndex: currentIndex,
@@ -816,11 +827,23 @@ Widget _buildBottomNav(BuildContext context, int currentIndex) {
     selectedItemColor: AppColors.primaryBlue,
     unselectedItemColor: AppColors.grey600,
     backgroundColor: AppColors.white,
-    items: const [
-      BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-      BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chat"),
-      BottomNavigationBarItem(icon: Icon(Icons.analytics), label: "Analytics"),
-      BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+    items: [
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.home),
+        label: tp.t('Home'),
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.chat),
+        label: tp.t('Chat'),
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.analytics),
+        label: tp.t('Analytics'),
+      ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.person),
+        label: tp.t('Profile'),
+      ),
     ],
   );
 }
@@ -1120,6 +1143,13 @@ class _QuickActionsGrid extends StatelessWidget {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const ReceiptSlipScreen(),
+                      ),
+                    );
+                    break;
+                  case 'Stop Cheque':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const StopChequeScreen(),
                       ),
                     );
                     break;

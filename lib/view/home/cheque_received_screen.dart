@@ -66,6 +66,9 @@ class ReceivedChequesScreen extends StatelessWidget {
                 case 'rejected':
                   status = ChequeStatus.rejected;
                   break;
+                case 'stopped':
+                  status = ChequeStatus.stopped;
+                  break;
                 default:
                   status = ChequeStatus.pending;
               }
@@ -108,6 +111,13 @@ class ReceivedChequesScreen extends StatelessWidget {
                       'rejected',
                 )
                 .length;
+            final stoppedCount = docs
+                .where(
+                  (d) =>
+                      (d['status']?.toString().toLowerCase() ?? '') ==
+                      'stopped',
+                )
+                .length;
 
             return ListView(
               children: [
@@ -146,6 +156,12 @@ class ReceivedChequesScreen extends StatelessWidget {
                         _StatusChip(
                           label: 'Rejected',
                           count: rejectedCount,
+                          color: Colors.red,
+                        ),
+                        const SizedBox(width: 12),
+                        _StatusChip(
+                          label: 'Stopped',
+                          count: stoppedCount,
                           color: Colors.red,
                         ),
                       ],
@@ -206,6 +222,8 @@ class ReceivedChequesScreen extends StatelessWidget {
                         (src['issuerBalance'] as num?)?.toDouble() ?? 0.0;
                     if (m.status == ChequeStatus.cleared) {
                       dot = Colors.grey;
+                    } else if (m.status == ChequeStatus.stopped) {
+                      dot = Colors.grey; // force red border for stopped
                     } else {
                       final band = issuerBal * 0.9; // 90% reachable band
                       if (amount > issuerBal) {
@@ -267,6 +285,8 @@ class ReceivedChequesScreen extends StatelessWidget {
                       Color? dot;
                       if (m.status == ChequeStatus.cleared) {
                         dot = Colors.grey;
+                      } else if (m.status == ChequeStatus.stopped) {
+                        dot = Colors.red; // force red border for stopped
                       } else if (!hasIssuerBal) {
                         dot = null; // avoid wrong color until balance present
                       } else {

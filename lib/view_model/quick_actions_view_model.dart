@@ -24,6 +24,25 @@ class QuickActionsViewModel extends ChangeNotifier {
       Color(0xFF10B981),
     ),
     QuickActionItem(
+      "Passbook",
+      Icons.menu_book_outlined,
+      Color(0xFFE8F0FF),
+      Color(0xFF2563EB),
+    ),
+    QuickActionItem(
+      "Confirmation",
+      Icons.verified_outlined,
+      Color(0xFFFFF7E6),
+      Color(0xFFF59E0B),
+    ),
+
+    QuickActionItem(
+      "E learning",
+      Icons.school_outlined,
+      Color(0xFFF3ECFF),
+      Color(0xFF7C3AED),
+    ),
+    QuickActionItem(
       "Recharge",
       Icons.phone_iphone,
       Color(0xFFF3ECFF),
@@ -65,26 +84,8 @@ class QuickActionsViewModel extends ChangeNotifier {
       Color(0xFFF0FDF4),
       Color(0xFF22C55E),
     ),
-    // Added bank-related forms and utilities
-    QuickActionItem(
-      "Passbook",
-      Icons.menu_book_outlined,
-      Color(0xFFE8F0FF),
-      Color(0xFF2563EB),
-    ),
-    QuickActionItem(
-      "Confirmation",
-      Icons.verified_outlined,
-      Color(0xFFFFF7E6),
-      Color(0xFFF59E0B),
-    ),
 
-    QuickActionItem(
-      "E learning",
-      Icons.school_outlined,
-      Color(0xFFF3ECFF),
-      Color(0xFF7C3AED),
-    ),
+    // Added bank-related forms and utilities
     QuickActionItem(
       "Change Mail",
       Icons.alternate_email,

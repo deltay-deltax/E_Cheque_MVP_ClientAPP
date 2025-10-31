@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum ChequeStatus { cleared, pending, bounced, rejected }
+enum ChequeStatus { cleared, pending, bounced, rejected, stopped }
 
 class ChequeModel {
   final String name;

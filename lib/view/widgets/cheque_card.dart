@@ -37,6 +37,10 @@ class ChequeCard extends StatelessWidget {
             ? "Bounced"
             : "Rejected";
         break;
+      case ChequeStatus.stopped:
+        statusColor = Colors.red;
+        statusText = "Stopped";
+        break;
     }
 
     return Container(
@@ -140,7 +144,9 @@ class ChequeCard extends StatelessWidget {
                       ? "Failed on ${model.dateText}"
                       : (model.status == ChequeStatus.pending
                             ? "Received on ${model.dateText}"
-                            : "Credited on ${model.dateText}"),
+                            : (model.status == ChequeStatus.stopped
+                                  ? "Stopped on ${model.dateText}"
+                                  : "Credited on ${model.dateText}")),
                   style: TextStyle(fontSize: 13, color: AppColors.mutedText),
                 ),
                 if (showActions)

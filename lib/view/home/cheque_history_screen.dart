@@ -296,6 +296,14 @@ class ChequeHistoryScreen extends StatelessWidget {
                                   'rejected',
                             )
                             .length;
+                        final stoppedCount = filteredDocs
+                            .where(
+                              (d) =>
+                                  (d['status']?.toString().toLowerCase() ??
+                                      '') ==
+                                  'stopped',
+                            )
+                            .length;
 
                         final filtered = filteredDocs;
 
@@ -340,6 +348,12 @@ class ChequeHistoryScreen extends StatelessWidget {
                                     count: rejectedCount,
                                     color: Colors.red,
                                   ),
+                                  const SizedBox(width: 12),
+                                  _StatusChipH(
+                                    label: 'Stopped',
+                                    count: stoppedCount,
+                                    color: Colors.red,
+                                  ),
                                 ],
                               ),
                             ),
@@ -361,6 +375,9 @@ class ChequeHistoryScreen extends StatelessWidget {
                                 break;
                               case 'bounced':
                                 status = ChequeStatus.bounced;
+                                break;
+                              case 'stopped':
+                                status = ChequeStatus.stopped;
                                 break;
                               default:
                                 status = ChequeStatus.pending;
@@ -384,6 +401,9 @@ class ChequeHistoryScreen extends StatelessWidget {
                             // Rule: cleared=grey; amount <= 90% of balance => green; 90%-100% => yellow; >100% => red
                             Color? dot;
                             if (status == ChequeStatus.cleared) {
+                              dot = Colors.grey;
+                            } else if (status == ChequeStatus.stopped) {
+                              // Force red border for stopped cheques
                               dot = Colors.grey;
                             } else if (!hasBalance) {
                               dot =
@@ -434,7 +454,8 @@ class ChequeHistoryScreen extends StatelessWidget {
                         // Compute real totals by summing amounts per status
                         double clearedTotal = 0,
                             pendingTotal = 0,
-                            rejectedTotal = 0;
+                            rejectedTotal = 0,
+                            stoppedTotal = 0;
                         for (final d in filteredDocs) {
                           final statusStr =
                               (d['status']?.toString().toLowerCase() ??
@@ -448,6 +469,9 @@ class ChequeHistoryScreen extends StatelessWidget {
                               break;
                             case 'rejected':
                               rejectedTotal += amount;
+                              break;
+                            case 'stopped':
+                              stoppedTotal += amount;
                               break;
                             default:
                               if (statusStr == 'pending')
@@ -477,6 +501,12 @@ class ChequeHistoryScreen extends StatelessWidget {
                                 _StatusTotal(
                                   "₹${rejectedTotal.toStringAsFixed(2)}",
                                   "Rejected",
+                                  Colors.red,
+                                ),
+                                const SizedBox(width: 24),
+                                _StatusTotal(
+                                  "₹${stoppedTotal.toStringAsFixed(2)}",
+                                  "Stopped",
                                   Colors.red,
                                 ),
                               ],
