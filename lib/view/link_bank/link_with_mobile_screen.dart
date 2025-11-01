@@ -84,7 +84,8 @@ class _LinkWithMobileScreenState extends State<LinkWithMobileScreen> {
                   onChanged: vm.setMobileNumber,
                   keyboardType: TextInputType.phone,
                   decoration: InputDecoration(
-                    hintText: "+1 (555) 987-6543",
+                    prefixText: '+91 ',
+                    hintText: "9876543210",
                     hintStyle: TextStyle(
                       fontSize: 17,
                       color: AppColors.mutedText,
@@ -137,7 +138,13 @@ class _LinkWithMobileScreenState extends State<LinkWithMobileScreen> {
                         height: 54,
                         child: ElevatedButton(
                           onPressed: () async {
-                            final phone = vm.mobileNumber.trim();
+                            var phone = vm.mobileNumber.trim();
+                            // Normalize to +91XXXXXXXXXX
+                            if (phone.isNotEmpty && !phone.startsWith('+91')) {
+                              phone = phone.startsWith('91')
+                                  ? '+$phone'
+                                  : (phone.startsWith('+') ? phone : '+91$phone');
+                            }
                             if (phone.isEmpty) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Enter mobile number')),

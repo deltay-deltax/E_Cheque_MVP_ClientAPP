@@ -308,25 +308,31 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
     async function resolveUidForAccount(accountNumber) {
       if (!accountNumber) return null;
       try {
-        // 1) Users mapping by bank.accountNumber
-        const uqs = await db
-          .collection('users')
-          .where('bank.accountNumber', '==', String(accountNumber))
-          .limit(1)
-          .get();
-        if (!uqs.empty) return uqs.docs[0].id;
-      } catch {}
-      try {
-        // 2) bankUsers mapping by accountNumber -> uid field
+        // Prefer authoritative bankUsers mapping first
         const bq = await db
           .collection('bankUsers')
           .where('accountNumber', '==', String(accountNumber))
           .limit(1)
           .get();
         if (!bq.empty) {
-          const uid = bq.docs[0].get('uid') || null;
-          return uid || bq.docs[0].id; // fallback to doc id
+          const doc = bq.docs[0];
+          // Do NOT trust bankUsers.uid; map via email -> users
+          const email = doc.get('email') || null;
+          if (email) {
+            const uq = await db.collection('users').where('email', '==', String(email)).limit(1).get();
+            if (!uq.empty) return uq.docs[0].id;
+          }
+          // If uid and email not present, do not fall back to bankUsers doc id
         }
+      } catch {}
+      try {
+        // Fallback: Users mapping by bank.accountNumber
+        const uqs = await db
+          .collection('users')
+          .where('bank.accountNumber', '==', String(accountNumber))
+          .limit(1)
+          .get();
+        if (!uqs.empty) return uqs.docs[0].id;
       } catch {}
       return null;
     }
@@ -396,12 +402,25 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
         if (senderBURef) {
           senderBUSnap = await t.get(senderBURef);
         }
-        // Prefer the pre-resolved receiverUidOutside if available
+        // Fetch receiverBUSnap if we have a bankUsers ref (for mirroring later)
+        if (receiverBURef) {
+          try { receiverBUSnap = await t.get(receiverBURef); } catch {}
+        }
+        // Prefer the pre-resolved receiverUidOutside if available; otherwise infer from accountNo/email (do NOT trust bankUsers.uid)
         if (receiverUidOutside && receiverUidOutside !== senderUid) {
           receiverUid = String(receiverUidOutside);
-        } else if (receiverBURef) {
-          receiverBUSnap = await t.get(receiverBURef);
-          receiverUid = receiverBUSnap.get('uid') || null;
+        } else if (accountNo) {
+          // Resolve strictly via account number first
+          receiverUid = await resolveUidForAccount(accountNo);
+        } else if (receiverBUSnap && receiverBUSnap.exists) {
+          // As a last resort, try email on bankUsers to map to users
+          const email = receiverBUSnap.get('email') || null;
+          if (email) {
+            try {
+              const uq = await db.collection('users').where('email', '==', String(email)).limit(1).get();
+              if (!uq.empty) receiverUid = uq.docs[0].id;
+            } catch {}
+          }
         }
         logger.info('verifyDeposit: receiver resolved', { receiverUid, hasReceiverBU: !!receiverBURef });
         if (receiverUid && receiverUid !== senderUid) {
@@ -452,19 +471,19 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
           { bank: { ...senderBank, balance: senderBal - amount } },
           { merge: true }
         );
-        logger.info('verifyDeposit: sender balance queued', { before: senderBal, after: senderBal - amount });
+        logger.info('verifyDeposit: sender balance queued', { before: senderBal, after: senderBal - amount, senderUserPath: senderRef.path });
         if (receiverRef) {
           t.set(
             receiverRef,
             { bank: { ...receiverBank, balance: receiverBal + amount, accountNumber: receiverBank.accountNumber || accountNo } },
             { merge: true }
           );
-          logger.info('verifyDeposit: receiver balance queued', { before: receiverBal, after: receiverBal + amount });
+          logger.info('verifyDeposit: receiver balance queued', { before: receiverBal, after: receiverBal + amount, receiverUserPath: receiverRef.path });
         }
         if (receiverBURef && receiverBUSnap) {
           const rbuBal = Number((receiverBUSnap.get('balance') ?? 0)) || 0;
           t.set(receiverBURef, { balance: rbuBal + amount }, { merge: true });
-          logger.info('verifyDeposit: mirrored bankUsers receiver balance', { before: rbuBal, after: rbuBal + amount });
+          logger.info('verifyDeposit: mirrored bankUsers receiver balance', { before: rbuBal, after: rbuBal + amount, bankUsersPath: receiverBURef.path });
         }
         if (senderBURef && senderBUSnap) {
           const sbuBal = Number((senderBUSnap.get('balance') ?? 0)) || 0;

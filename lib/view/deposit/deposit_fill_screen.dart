@@ -153,6 +153,7 @@ class DepositSlipScreen extends StatelessWidget {
                     DepositInputField(
                       hint: tp.t('Account No.'),
                       initialValue: vm.accountNo,
+                      type: TextInputType.number,
                       onChanged: (v) => vm.setField(accountNo: v),
                     ),
                     SizedBox(height: 6),
