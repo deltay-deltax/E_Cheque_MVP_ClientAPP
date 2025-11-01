@@ -31,11 +31,12 @@ class ChequeCard extends StatelessWidget {
         statusText = "Pending";
         break;
       case ChequeStatus.bounced:
+        statusColor = Colors.grey;
+        statusText = "Bounced";
+        break;
       case ChequeStatus.rejected:
         statusColor = Colors.red;
-        statusText = model.status == ChequeStatus.bounced
-            ? "Bounced"
-            : "Rejected";
+        statusText = "Rejected";
         break;
       case ChequeStatus.stopped:
         statusColor = Colors.red;

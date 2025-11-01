@@ -205,7 +205,7 @@ class _StopChequeScreenState extends State<StopChequeScreen> {
                       return const Center(child: CircularProgressIndicator(strokeWidth: 2));
                     }
                     final docs = (snap.data?.docs ?? const [])
-                        .where((d) => (d.data()['status']?.toString().toLowerCase() ?? '') != 'cleared')
+                        .where((d) => (d.data()['status']?.toString().toLowerCase() ?? '') == 'pending')
                         .toList();
                     if (docs.isEmpty) {
                       return const Center(

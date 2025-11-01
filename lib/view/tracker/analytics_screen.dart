@@ -62,7 +62,7 @@ class AnalyticsScreen extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 24,
-                      color: Colors.black87,
+                      color: Colors.white,
                       letterSpacing: -.7,
                     ),
                   ),
@@ -78,9 +78,9 @@ class AnalyticsScreen extends StatelessWidget {
                   ),
                 ],
                 bottom: TabBar(
-                  labelColor: Colors.black,
-                  unselectedLabelColor: Colors.black54,
-                  indicatorColor: Colors.black,
+                  labelColor: Colors.white,
+                  unselectedLabelColor: Colors.white,
+                  indicatorColor: Colors.white,
                   tabs: [
                     Tab(text: tp.t('Insights')),
                     Tab(text: tp.t('Payees')),

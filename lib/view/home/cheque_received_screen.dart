@@ -104,11 +104,12 @@ class ReceivedChequesScreen extends StatelessWidget {
                       'pending',
                 )
                 .length;
-            final rejectedCount = docs
+            // removed rejected count
+            final bouncedCount = docs
                 .where(
                   (d) =>
                       (d['status']?.toString().toLowerCase() ?? '') ==
-                      'rejected',
+                      'bounced',
                 )
                 .length;
             final stoppedCount = docs
@@ -153,10 +154,11 @@ class ReceivedChequesScreen extends StatelessWidget {
                           color: Colors.orange,
                         ),
                         const SizedBox(width: 12),
+                        // removed Rejected chip
                         _StatusChip(
-                          label: 'Rejected',
-                          count: rejectedCount,
-                          color: Colors.red,
+                          label: 'Bounced',
+                          count: bouncedCount,
+                          color: Colors.grey,
                         ),
                         const SizedBox(width: 12),
                         _StatusChip(
@@ -223,7 +225,9 @@ class ReceivedChequesScreen extends StatelessWidget {
                     if (m.status == ChequeStatus.cleared) {
                       dot = Colors.grey;
                     } else if (m.status == ChequeStatus.stopped) {
-                      dot = Colors.grey; // force red border for stopped
+                      dot = Colors.grey; // stopped = grey border
+                    } else if (m.status == ChequeStatus.bounced) {
+                      dot = Colors.grey; // bounced = grey border
                     } else {
                       final band = issuerBal * 0.9; // 90% reachable band
                       if (amount > issuerBal) {
@@ -245,8 +249,28 @@ class ReceivedChequesScreen extends StatelessWidget {
                           ? 'grey'
                           : 'none'}",
                     );
+                    // If not cleared/stopped and issuer balance known, flip to bounced for UI if amount > balance
+                    final effectiveStatus = () {
+                      if (m.status == ChequeStatus.cleared || m.status == ChequeStatus.stopped) return m.status;
+                      if (issuerBal > 0 && amount > issuerBal) return ChequeStatus.bounced;
+                      return m.status;
+                    }();
+                    final effModel = (effectiveStatus == m.status)
+                        ? m
+                        : ChequeModel(
+                            name: m.name,
+                            subText: m.subText,
+                            amount: m.amount,
+                            status: effectiveStatus,
+                            dateText: m.dateText,
+                            time: m.time,
+                            id: m.id,
+                            avatarUrl: m.avatarUrl,
+                            chequeNo: m.chequeNo,
+                            extraDesc: m.extraDesc,
+                          );
                     return ChequeCard(
-                      model: m,
+                      model: effModel,
                       showActions: false,
                       statusDotColor: dot,
                       onView: () {
@@ -286,7 +310,9 @@ class ReceivedChequesScreen extends StatelessWidget {
                       if (m.status == ChequeStatus.cleared) {
                         dot = Colors.grey;
                       } else if (m.status == ChequeStatus.stopped) {
-                        dot = Colors.red; // force red border for stopped
+                        dot = Colors.grey; // stopped = grey border
+                      } else if (m.status == ChequeStatus.bounced) {
+                        dot = Colors.grey; // bounced = grey border
                       } else if (!hasIssuerBal) {
                         dot = null; // avoid wrong color until balance present
                       } else {
@@ -313,8 +339,29 @@ class ReceivedChequesScreen extends StatelessWidget {
                       debugPrint(
                         "[Received] cheque id=${m.id} amount=$amount issuerBal=$issuerBal dot=$colorName status=${m.status}",
                       );
+                      // If not cleared/stopped and issuer balance known, flip to bounced for UI if amount > balance
+                      final effectiveStatus = () {
+                        if (m.status == ChequeStatus.cleared || m.status == ChequeStatus.stopped) return m.status;
+                        // Use issuerBal even if !hasIssuerBal, since we fallback to src issuerBalance
+                        if (issuerBal > 0 && amount > issuerBal) return ChequeStatus.bounced;
+                        return m.status;
+                      }();
+                      final effModel = (effectiveStatus == m.status)
+                          ? m
+                          : ChequeModel(
+                              name: m.name,
+                              subText: m.subText,
+                              amount: m.amount,
+                              status: effectiveStatus,
+                              dateText: m.dateText,
+                              time: m.time,
+                              id: m.id,
+                              avatarUrl: m.avatarUrl,
+                              chequeNo: m.chequeNo,
+                              extraDesc: m.extraDesc,
+                            );
                       return ChequeCard(
-                        model: m,
+                        model: effModel,
                         showActions: false,
                         statusDotColor: dot,
                         onView: () {

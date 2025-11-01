@@ -17,13 +17,32 @@ class BankService {
 
   Future<List<Map<String, dynamic>>> searchByPhonePrefix(String prefix, {int limit = 5}) async {
     if (prefix.isEmpty) return [];
-    final end = prefix.substring(0, prefix.length - 1) + String.fromCharCode(prefix.codeUnitAt(prefix.length - 1) + 1);
-    final q = await _bankUsers
-        .where('phone', isGreaterThanOrEqualTo: prefix)
-        .where('phone', isLessThan: end)
-        .limit(limit)
-        .get();
-    return q.docs.map((d) => d.data()).toList();
+    // Build candidate prefixes so typing '89' can match '+9189...'
+    final String raw = prefix;
+    final List<String> candidates = <String>{
+      raw,
+      if (!raw.startsWith('+')) '+$raw',
+      if (!raw.startsWith('+91')) '+91$raw',
+      if (!raw.startsWith('91')) '91$raw',
+    }.toList();
+
+    final Map<String, Map<String, dynamic>> out = {};
+    for (final p in candidates) {
+      if (p.isEmpty) continue;
+      final end = p.substring(0, p.length - 1) + String.fromCharCode(p.codeUnitAt(p.length - 1) + 1);
+      final q = await _bankUsers
+          .where('phone', isGreaterThanOrEqualTo: p)
+          .where('phone', isLessThan: end)
+          .limit(limit)
+          .get();
+      for (final d in q.docs) {
+        final data = d.data();
+        final key = (data['phone'] as String?) ?? d.id;
+        out[key] = data;
+      }
+      if (out.length >= limit) break; // enough results
+    }
+    return out.values.take(limit).toList();
   }
 
   Future<List<Map<String, dynamic>>> searchByUpiPrefix(String prefix, {int limit = 5}) async {

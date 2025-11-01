@@ -288,12 +288,13 @@ class ChequeHistoryScreen extends StatelessWidget {
                                   'pending',
                             )
                             .length;
-                        final rejectedCount = filteredDocs
+                        // removed rejected count
+                        final bouncedCount = filteredDocs
                             .where(
                               (d) =>
                                   (d['status']?.toString().toLowerCase() ??
                                       '') ==
-                                  'rejected',
+                                  'bounced',
                             )
                             .length;
                         final stoppedCount = filteredDocs
@@ -343,10 +344,11 @@ class ChequeHistoryScreen extends StatelessWidget {
                                     color: AppColors.primaryYellow,
                                   ),
                                   const SizedBox(width: 12),
+                                  // removed Rejected chip
                                   _StatusChipH(
-                                    label: 'Rejected',
-                                    count: rejectedCount,
-                                    color: Colors.red,
+                                    label: 'Bounced',
+                                    count: bouncedCount,
+                                    color: Colors.grey,
                                   ),
                                   const SizedBox(width: 12),
                                   _StatusChipH(
@@ -398,12 +400,13 @@ class ChequeHistoryScreen extends StatelessWidget {
                               extraDesc: null,
                             );
 
-                            // Rule: cleared=grey; amount <= 90% of balance => green; 90%-100% => yellow; >100% => red
+                            // Rule: cleared/stopped/bounced=grey; else balance-based: >100%=red, >=90%=yellow, else green
                             Color? dot;
                             if (status == ChequeStatus.cleared) {
                               dot = Colors.grey;
                             } else if (status == ChequeStatus.stopped) {
-                              // Force red border for stopped cheques
+                              dot = Colors.grey;
+                            } else if (status == ChequeStatus.bounced) {
                               dot = Colors.grey;
                             } else if (!hasBalance) {
                               dot =
@@ -454,7 +457,6 @@ class ChequeHistoryScreen extends StatelessWidget {
                         // Compute real totals by summing amounts per status
                         double clearedTotal = 0,
                             pendingTotal = 0,
-                            rejectedTotal = 0,
                             stoppedTotal = 0;
                         for (final d in filteredDocs) {
                           final statusStr =
@@ -467,9 +469,7 @@ class ChequeHistoryScreen extends StatelessWidget {
                             case 'cleared':
                               clearedTotal += amount;
                               break;
-                            case 'rejected':
-                              rejectedTotal += amount;
-                              break;
+                            // removed rejected aggregation
                             case 'stopped':
                               stoppedTotal += amount;
                               break;
@@ -498,12 +498,7 @@ class ChequeHistoryScreen extends StatelessWidget {
                                   AppColors.primaryYellow,
                                 ),
                                 const SizedBox(width: 24),
-                                _StatusTotal(
-                                  "₹${rejectedTotal.toStringAsFixed(2)}",
-                                  "Rejected",
-                                  Colors.red,
-                                ),
-                                const SizedBox(width: 24),
+                                // removed Rejected chip
                                 _StatusTotal(
                                   "₹${stoppedTotal.toStringAsFixed(2)}",
                                   "Stopped",
