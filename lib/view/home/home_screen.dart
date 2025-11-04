@@ -26,6 +26,7 @@ import 'package:echeque_mvp/view/home/stop_cheque_screen.dart';
 // removed BankLinkGuard
 import '../chat/chat_screen.dart';
 import 'package:echeque_mvp/localization/translation_provider.dart';
+import '../../core/services/prefs_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,6 +36,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  String? _cachedBalance;
   Future<void> _refresh() async {
     setState(() {});
     await Future.delayed(const Duration(milliseconds: 600));
@@ -66,6 +68,10 @@ class _HomeScreenState extends State<HomeScreen> {
       ]);
       ChequeService.instance.processDueCheques();
       NotificationService.instance.startUserOutcomeWatchers();
+    });
+    PrefsService.instance.getLastKnownBalance().then((v) {
+      if (!mounted) return;
+      setState(() => _cachedBalance = v);
     });
   }
 
@@ -372,9 +378,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                         );
                                         final effStr =
                                             '₹${eff.toStringAsFixed(2)}';
+                                        final display = effStr;
+                                        PrefsService.instance
+                                            .setLastKnownBalance(display);
                                         return _BalanceCard(
                                           vm: vm,
-                                          overrideBalance: effStr,
+                                          overrideBalance: display,
                                           overrideAccountNumber: acct,
                                         );
                                       }
@@ -382,10 +391,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                     debugPrint(
                                       '[Home] preferredBalStr=$preferredBalStr using=${preferredBalStr ?? liveBalanceStr}',
                                     );
+                                    final display = preferredBalStr ??
+                                        liveBalanceStr ?? _cachedBalance;
+                                    if (display != null) {
+                                      PrefsService.instance
+                                          .setLastKnownBalance(display);
+                                    }
                                     return _BalanceCard(
                                       vm: vm,
-                                      overrideBalance:
-                                          preferredBalStr ?? liveBalanceStr,
+                                      overrideBalance: display,
                                       overrideAccountNumber: acct,
                                     );
                                   },

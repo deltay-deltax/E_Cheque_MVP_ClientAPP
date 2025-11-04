@@ -1,3 +1,4 @@
+import 'package:echeque_mvp/view/more/contact_us_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -181,16 +182,6 @@ class ProfileScreen extends StatelessWidget {
                 },
               ),
               ProfileTile(
-                icon: Icons.shield,
-                title: tp.t('Security Settings'),
-                subtitle: '—',
-              ),
-              ProfileTile(
-                icon: Icons.notifications,
-                title: tp.t('Notification Preferences'),
-                subtitle: tp.t('Customize alerts'),
-              ),
-              ProfileTile(
                 icon: Icons.language,
                 title: tp.t('Language'),
                 subtitle: tp.t('Choose your preferred language'),
@@ -206,6 +197,17 @@ class ProfileScreen extends StatelessWidget {
                   );
                 },
               ),
+              ProfileTile(
+                icon: Icons.shield,
+                title: tp.t('Security Settings'),
+                subtitle: 'Secure and protected',
+              ),
+              ProfileTile(
+                icon: Icons.notifications,
+                title: tp.t('Notification Preferences'),
+                subtitle: tp.t('Customize alerts'),
+              ),
+
               const SizedBox(height: 16),
 
               Text(
@@ -216,31 +218,37 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               ProfileTile(
-                icon: Icons.fact_check,
-                title: tp.t('Budget Planner'),
-                subtitle: tp.t('Track your spending'),
-              ),
-              ProfileTile(
                 icon: Icons.sync_alt,
                 title: tp.t('Currency Converter'),
                 subtitle: tp.t('Check exchange rates'),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CurrencyConverterScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const CurrencyConverterScreen(),
+                  ),
                 ),
-              ),
-              ProfileTile(
-                icon: Icons.receipt_long,
-                title: tp.t('Bill Payment'),
-                subtitle: tp.t('Pay your bills easily'),
               ),
               ProfileTile(
                 icon: Icons.calculate,
                 title: tp.t('Tax Calculator'),
                 subtitle: tp.t('Estimate your taxes'),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TaxCalculatorScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const TaxCalculatorScreen(),
+                  ),
                 ),
               ),
+              ProfileTile(
+                icon: Icons.fact_check,
+                title: tp.t('Budget Planner'),
+                subtitle: tp.t('Track your spending'),
+              ),
+
+              ProfileTile(
+                icon: Icons.receipt_long,
+                title: tp.t('Bill Payment'),
+                subtitle: tp.t('Pay your bills easily'),
+              ),
+
               ProfileTile(
                 icon: Icons.assignment,
                 title: tp.t('Auto Fill Forms'),
@@ -259,6 +267,9 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.help,
                 title: tp.t('Contact Us'),
                 subtitle: tp.t('Get help and support'),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+                ),
               ),
               ProfileTile(
                 icon: Icons.policy,

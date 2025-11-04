@@ -10,6 +10,7 @@ class InvoiceInputField extends StatefulWidget {
   final VoidCallback? onTap;
   final ValueChanged<String>? onChanged;
   final String? initialValue;
+  final String? prefixText;
 
   const InvoiceInputField({
     required this.hint,
@@ -20,6 +21,7 @@ class InvoiceInputField extends StatefulWidget {
     this.onTap,
     this.onChanged,
     this.initialValue,
+    this.prefixText,
     super.key,
   });
 
@@ -90,6 +92,7 @@ class _InvoiceInputFieldState extends State<InvoiceInputField> {
           horizontal: 18,
         ),
         isDense: true,
+        prefixText: widget.prefixText,
       ),
     );
   }

@@ -62,7 +62,7 @@ class AnalyticsScreen extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 24,
-                      color: Colors.white,
+                      color: Colors.black,
                       letterSpacing: -.7,
                     ),
                   ),
@@ -401,9 +401,15 @@ class AnalyticsScreen extends StatelessWidget {
                   // ------------------ TRANSACTIONS TAB ------------------
                   Builder(
                     builder: (_) {
-                      //
-                      // --- THIS IS THE CORRECTED LOGIC ---
-                      //
+                      // If the selected month has no data yet (or invalid month), hide list
+                      if (!analyticsVm.hasDataForMonth) {
+                        return Center(
+                          child: Text(
+                            tp.t('No data found'),
+                            style: const TextStyle(color: Colors.grey),
+                          ),
+                        );
+                      }
 
                       // --- Transactions list UI (chart removed) ---
                       return ListView(

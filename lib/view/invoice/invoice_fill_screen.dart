@@ -1,6 +1,8 @@
 import 'package:echeque_mvp/view/widgets/invoice_input_field.dart';
 import 'package:echeque_mvp/services/invoice_service.dart';
 import 'package:echeque_mvp/view/invoice/invoice_pdf.dart';
+import 'package:echeque_mvp/view/invoice/received_invoices_screen.dart';
+import 'package:echeque_mvp/services/receipt_service.dart';
 import 'package:printing/printing.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -26,14 +28,7 @@ class NewInvoiceScreen extends StatelessWidget {
               backgroundColor: Color(0xFFF7F9FC),
               elevation: 0,
               centerTitle: true,
-              title: Text(
-                "New Invoice",
-                style: TextStyle(
-                  color: Color(0xFF2272E5),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 23,
-                ),
-              ),
+
               leading: BackButton(color: Colors.black),
               actions: [
                 TextButton(
@@ -45,6 +40,16 @@ class NewInvoiceScreen extends StatelessWidget {
                     );
                   },
                   child: const Text('View Invoices'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ReceivedInvoicesScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Received Invoices'),
                 ),
               ],
             ),
@@ -114,10 +119,16 @@ class NewInvoiceScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       InvoiceInputField(
-                        hint: "Phone Number",
+                        hint: 'Phone Number',
                         initialValue: vm.clientPhone,
-                        type: TextInputType.phone,
-                        onChanged: (v) => vm.setField(phone: v),
+                        type: TextInputType.number,
+                        prefixText: '+91 ',
+                        onChanged: (raw) {
+                          // Keep only digits and clamp to 10
+                          var d = raw.replaceAll(RegExp(r'[^0-9]'), '');
+                          if (d.length > 10) d = d.substring(0, 10);
+                          vm.setField(phone: d);
+                        },
                       ),
                       const SizedBox(height: 10),
                       InvoiceInputField(
@@ -170,7 +181,10 @@ class NewInvoiceScreen extends StatelessWidget {
                                       hint: "1",
                                       initialValue: "${item.qty}",
                                       type: TextInputType.number,
-                                      onChanged: (v) => vm.updateItem(i, qty: int.tryParse(v) ?? 0),
+                                      onChanged: (v) => vm.updateItem(
+                                        i,
+                                        qty: int.tryParse(v) ?? 0,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(width: 6),
@@ -359,13 +373,24 @@ class NewInvoiceScreen extends StatelessWidget {
                         'notes': vm.notes,
                       };
                       await InvoiceService.instance.createInvoice(data);
+                      // Also deliver to receiver's inbox by phone
+                      if (vm.clientPhone.trim().isNotEmpty) {
+                        await ReceiptService.instance.deliverToReceiverInvoice(
+                          invoiceData: data,
+                          receiverPhone: vm.clientPhone.trim(),
+                        );
+                      }
                       vm.reset();
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invoice created successfully')),
+                          const SnackBar(
+                            content: Text('Invoice created successfully'),
+                          ),
                         );
                         Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const InvoiceListScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const InvoiceListScreen(),
+                          ),
                         );
                       }
                     },
@@ -423,14 +448,19 @@ class InvoiceListScreen extends StatelessWidget {
                 subtitle: Text('₹${total.toStringAsFixed(2)}'),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => InvoicePdfPreviewScreen(data: d)),
+                    MaterialPageRoute(
+                      builder: (_) => InvoicePdfPreviewScreen(data: d),
+                    ),
                   );
                 },
                 trailing: IconButton(
                   icon: const Icon(Icons.share),
                   onPressed: () async {
                     final bytes = await InvoicePdf.build(d);
-                    await Printing.sharePdf(bytes: bytes, filename: '${title.isEmpty ? d['id'] : title}.pdf');
+                    await Printing.sharePdf(
+                      bytes: bytes,
+                      filename: '${title.isEmpty ? d['id'] : title}.pdf',
+                    );
                   },
                 ),
               );

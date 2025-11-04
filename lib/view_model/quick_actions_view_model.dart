@@ -23,12 +23,7 @@ class QuickActionsViewModel extends ChangeNotifier {
       Color(0xFFE6FFF4),
       Color(0xFF10B981),
     ),
-    QuickActionItem(
-      "Passbook",
-      Icons.menu_book_outlined,
-      Color(0xFFE8F0FF),
-      Color(0xFF2563EB),
-    ),
+
     QuickActionItem(
       "Confirmation",
       Icons.verified_outlined,
@@ -41,6 +36,12 @@ class QuickActionsViewModel extends ChangeNotifier {
       Icons.school_outlined,
       Color(0xFFF3ECFF),
       Color(0xFF7C3AED),
+    ),
+    QuickActionItem(
+      "Passbook",
+      Icons.menu_book_outlined,
+      Color(0xFFE8F0FF),
+      Color(0xFF2563EB),
     ),
     QuickActionItem(
       "Recharge",

@@ -235,6 +235,7 @@ class AnalyticsViewModel extends ChangeNotifier {
 
     // Build list for all known categories, defaulting to 0 amounts
     final items = <AnalyticsCategory>[];
+    final existingIds = _categories.map((c) => c.id).toSet();
     for (final c in _categories) {
       final amount = (_categoryTotals[c.id] ?? 0.0);
       final name = c.name.isNotEmpty ? c.name : 'Other';
@@ -251,6 +252,42 @@ class AnalyticsViewModel extends ChangeNotifier {
           color: color,
           percent: pct,
           amount: amount.round(),
+          summaryLabel: '',
+          summaryDesc: '',
+        ),
+      );
+    }
+
+    // Include any unknown totals (e.g., '__other__') that are not in user's category list
+    // Specifically ensure '__other__' is represented as 'Other'
+    if (_categoryTotals.containsKey('__other__') && !existingIds.contains('__other__')) {
+      final amount = _categoryTotals['__other__'] ?? 0.0;
+      final pct = total <= 0 ? 0 : ((amount / total) * 100).round();
+      items.add(
+        AnalyticsCategory(
+          label: 'Other',
+          sublabel: '',
+          icon: Icons.category,
+          color: const Color(0xFF9C27B0).withOpacity(0.12),
+          percent: pct,
+          amount: amount.round(),
+          summaryLabel: '',
+          summaryDesc: '',
+        ),
+      );
+    }
+
+    // Ensure an 'Other' bucket exists on first load (0 amount) if not present anywhere
+    final hasOtherInItems = items.any((e) => e.label.toLowerCase() == 'other');
+    if (!hasOtherInItems) {
+      items.add(
+        AnalyticsCategory(
+          label: 'Other',
+          sublabel: '',
+          icon: Icons.category,
+          color: const Color(0xFF9C27B0).withOpacity(0.12),
+          percent: 0,
+          amount: 0,
           summaryLabel: '',
           summaryDesc: '',
         ),

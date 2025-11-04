@@ -18,6 +18,7 @@ import '../../view/link_bank/bank_info_screen.dart';
 import '../../view/link_bank/link_with_mobile_screen.dart';
 import '../../view/root_gate.dart';
 import '../../view/chat/chat_screen.dart';
+import '../../view/more/contact_us_screen.dart';
 
 class AppRoutes {
   // Splash/Auth
@@ -37,6 +38,7 @@ class AppRoutes {
   static const String bankAdd = '/bank/add';
   static const String bankInfo = '/bank/info';
   static const String linkWithMobile = '/bank/link-mobile';
+  static const String contact = '/contact';
 
   // Transaction PIN flow
   static const String pinEnter = '/pin/enter';
@@ -78,6 +80,8 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => const HomeScreen());
       case chat:
         return MaterialPageRoute(builder: (_) => ChatScreen());
+      case contact:
+        return MaterialPageRoute(builder: (_) => const ContactUsScreen());
       case bankAdd:
         return MaterialPageRoute(builder: (_) => const BankAddModalScreen());
       case bankInfo:
