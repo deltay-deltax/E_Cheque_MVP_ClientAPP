@@ -58,6 +58,13 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
       }
     }
 
+    async function handleListBankUsers() {
+      const limit = Math.min(Number(body.limit || 100), 500);
+      const q = await db.collection('bankUsers').orderBy('createdAt', 'desc').limit(limit).get();
+      const items = q.docs.map(d => ({ id: d.id, ...d.data() }));
+      return res.status(200).json({ ok: true, items });
+    }
+
     async function handleListReceipts() {
       const limit = Math.min(Number(body.limit || 100), 500);
       const q = await db.collection('receipts').orderBy('serverTime', 'desc').limit(limit).get();
@@ -553,6 +560,7 @@ export const adminApi = onRequest({ region: "asia-south1", cors: true, timeoutSe
     }
 
     if (action === 'saveBankUser') return await handleSaveBankUser();
+    if (action === 'listBankUsers') return await handleListBankUsers();
     if (action === 'listDeposits') return await handleListDeposits();
     if (action === 'depositGet') return await handleDepositGet();
     if (action === 'verifyDeposit') return await handleVerifyDeposit();

@@ -220,6 +220,78 @@
           </div>
         </a>
       </div>
+      <div class="actions">
+        <button id="refreshBtn" type="button">Refresh</button>
+      </div>
+      <div style="margin-top:16px; overflow:auto">
+        <table style="width:100%; border-collapse:collapse" id="usersTable">
+          <thead>
+            <tr style="text-align:left; border-bottom:1px solid #e5e7eb">
+              <th style="padding:8px">Name</th>
+              <th style="padding:8px">Email</th>
+              <th style="padding:8px">Phone</th>
+              <th style="padding:8px">Account No.</th>
+              <th style="padding:8px">Type</th>
+              <th style="padding:8px">Bank</th>
+              <th style="padding:8px">Branch</th>
+              <th style="padding:8px">IFSC</th>
+              <th style="padding:8px">Balance</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+      <div id="msg" class="msg"></div>
     </div>
+    <script>
+      (function(){
+        function el(id){return document.getElementById(id)}
+        const msg = el('msg');
+        function setMsg(text, ok){ msg.textContent=text; msg.className='msg '+(ok?'ok':'err') }
+        function clearMsg(){ msg.textContent=''; msg.className='msg' }
+        function fmt(x){ if(x===undefined||x===null) return ''; return String(x) }
+        function render(items){
+          const tb = el('usersBody');
+          if(!Array.isArray(items) || !items.length){ tb.innerHTML = '<tr><td colspan="9" style="padding:10px;color:#666">No data</td></tr>'; return; }
+          tb.innerHTML = items.map(i => {
+            const name = fmt(i.fullName);
+            const email = fmt(i.email);
+            const phone = fmt(i.phone);
+            const acc = fmt(i.accountNumber);
+            const typ = fmt(i.accountType);
+            const bank = fmt(i.bankName);
+            const br = fmt(i.branch);
+            const ifsc = fmt(i.ifsc);
+            const bal = i.balance!==undefined && i.balance!==null ? Number(i.balance).toLocaleString('en-IN',{maximumFractionDigits:2}) : '';
+            return '<tr style="border-bottom:1px solid #f3f4f6">'
+              + '<td style="padding:8px">'+name+'</td>'
+              + '<td style="padding:8px">'+email+'</td>'
+              + '<td style="padding:8px">'+phone+'</td>'
+              + '<td style="padding:8px">'+acc+'</td>'
+              + '<td style="padding:8px">'+typ+'</td>'
+              + '<td style="padding:8px">'+bank+'</td>'
+              + '<td style="padding:8px">'+br+'</td>'
+              + '<td style="padding:8px">'+ifsc+'</td>'
+              + '<td style="padding:8px; text-align:right">'+bal+'</td>'
+              + '</tr>';
+          }).join('');
+        }
+        async function load(){
+          clearMsg();
+          const C = window.ADMIN_CONFIG || {};
+          if(!C.FUNCTION_URL || !C.ADMIN_KEY){ setMsg('Missing config.js FUNCTION_URL/ADMIN_KEY', false); return; }
+          try{
+            const res = await fetch(C.FUNCTION_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'listBankUsers', adminKey:C.ADMIN_KEY, limit:200})});
+            const j = await res.json();
+            if(!res.ok) throw new Error(j.error||('HTTP '+res.status));
+            render(j.items||[]);
+            setMsg('Loaded '+((j.items&&j.items.length)||0)+' users', true);
+          }catch(e){ setMsg('Error: '+(e.message||e), false); }
+        }
+        document.addEventListener('DOMContentLoaded', load);
+        const r = el('refreshBtn');
+        if(r) r.addEventListener('click', load);
+      })();
+    </script>
   </body>
 </html>
